@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Audit Log — VerdictMail{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-journal-text me-2"></i>Audit Log</h4>
+  <span class="text-muted small">{{ total }} records</span>
+</div>
+
+<!-- Filter bar -->
+<form method="get" class="row g-2 mb-3">
+  <div class="col-md-5">
+    <input type="text" name="q" class="form-control form-control-sm" placeholder="Search sender / subject / reasoning…" value="{{ q }}">
+  </div>
+  <div class="col-md-2">
+    <select name="threat" class="form-select form-select-sm">
+      <option value="">All threats</option>
+      {% for lvl in ['none','low','medium','high','critical'] %}
+        <option value="{{ lvl }}" {% if threat_filter == lvl %}selected{% endif %}>{{ lvl }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-2">
+    <select name="action" class="form-select form-select-sm">
+      <option value="">All actions</option>
+      {% for act in ['pass','flag','move_to_junk'] %}
+        <option value="{{ act }}" {% if action_filter == act %}selected{% endif %}>{{ act }}</option>
+      {% endfor %}
+    </select>
+  </div>
+  <div class="col-md-1">
+    <button type="submit" class="btn btn-sm btn-primary w-100">Filter</button>
+  </div>
+  <div class="col-md-1">
+    <a href="{{ url_for('audit') }}" class="btn btn-sm btn-outline-secondary w-100">Reset</a>
+  </div>
+</form>
+
+<!-- Table -->
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th><th>Timestamp</th><th>Sender</th><th>Subject</th>
+          <th>Threat</th><th>Confidence</th><th>Action</th><th>ms</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        <tr>
+          <td class="text-muted">{{ r['id'] }}</td>
+          <td class="small text-muted">{{ r['timestamp'] | local_dt(tz_name) }}</td>
+          <td class="small">{{ r['sender'] or '—' }}</td>
+          <td class="small">{{ (r['subject'] or '—')[:60] }}</td>
+          <td>
+            <span class="threat-{{ r['threat_level'] or 'none' }}">{{ r['threat_level'] or '—' }}</span>
+          </td>
+          <td class="small">
+            {% if r['confidence'] is not none %}{{ '%.0f%%' % (r['confidence']*100) }}{% else %}—{% endif %}
+          </td>
+          <td>
+            {% set act = r['action_taken'] or 'error' %}
+            {% if act == 'pass' %}<span class="badge badge-pass">pass</span>
+            {% elif act == 'flag' %}<span class="badge badge-flag">flag</span>
+            {% elif act == 'move_to_junk' %}<span class="badge badge-junk">junk</span>
+            {% else %}<span class="badge badge-error">{{ act[:12] }}</span>{% endif %}
+          </td>
+          <td class="small text-muted">{{ r['processing_ms'] or '—' }}</td>
+          <td>
+            <button class="btn btn-sm btn-outline-secondary py-0"
+              data-bs-toggle="modal" data-bs-target="#detailModal"
+              data-id="{{ r['id'] }}"
+              data-sender="{{ r['sender'] or '' }}"
+              data-subject="{{ r['subject'] or '' }}"
+              data-timestamp="{{ r['timestamp'] | local_dt(tz_name) }}"
+              data-threat="{{ r['threat_level'] or '' }}"
+              data-confidence="{{ r['confidence'] or '' }}"
+              data-action="{{ r['action_taken'] or '' }}"
+              data-types="{{ r['threat_types'] or '' }}"
+              data-reasoning="{{ r['reasoning'] or '' }}"
+              data-model="{{ r['model_name'] or '' }}"
+              data-ms="{{ r['processing_ms'] or '' }}"
+              data-signals="{{ r['signals'] or '' }}"
+              data-raw="{{ r['raw_ai_response'] or '' }}">
+              Detail
+            </button>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center text-muted py-3">No records found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if total_pages > 1 %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-center">
+    <li class="page-item {% if page == 1 %}disabled{% endif %}">
+      <a class="page-link" href="?page={{ page-1 }}&q={{ q }}&threat={{ threat_filter }}&action={{ action_filter }}">‹</a>
+    </li>
+    {% for p in range([1, page-2]|max, [total_pages+1, page+3]|min) %}
+    <li class="page-item {% if p == page %}active{% endif %}">
+      <a class="page-link" href="?page={{ p }}&q={{ q }}&threat={{ threat_filter }}&action={{ action_filter }}">{{ p }}</a>
+    </li>
+    {% endfor %}
+    <li class="page-item {% if page == total_pages %}disabled{% endif %}">
+      <a class="page-link" href="?page={{ page+1 }}&q={{ q }}&threat={{ threat_filter }}&action={{ action_filter }}">›</a>
+    </li>
+  </ul>
+</nav>
+{% endif %}
+
+<!-- Detail modal -->
+<div class="modal fade" id="detailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Email Detail #<span id="m-id"></span></h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <dl class="row small">
+          <dt class="col-sm-3">Timestamp</dt>   <dd class="col-sm-9" id="m-timestamp"></dd>
+          <dt class="col-sm-3">Sender</dt>      <dd class="col-sm-9" id="m-sender"></dd>
+          <dt class="col-sm-3">Subject</dt>     <dd class="col-sm-9" id="m-subject"></dd>
+          <dt class="col-sm-3">Threat level</dt><dd class="col-sm-9" id="m-threat"></dd>
+          <dt class="col-sm-3">Confidence</dt>  <dd class="col-sm-9" id="m-confidence"></dd>
+          <dt class="col-sm-3">Action</dt>      <dd class="col-sm-9" id="m-action"></dd>
+          <dt class="col-sm-3">Threat types</dt><dd class="col-sm-9" id="m-types"></dd>
+          <dt class="col-sm-3">Model</dt>       <dd class="col-sm-9" id="m-model"></dd>
+          <dt class="col-sm-3">Processing</dt>  <dd class="col-sm-9"><span id="m-ms"></span> ms</dd>
+          <dt class="col-sm-3">Reasoning</dt>   <dd class="col-sm-9" id="m-reasoning"></dd>
+        </dl>
+        <div class="accordion" id="signalsAccordion">
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#signalsCollapse">
+                Signals JSON
+              </button>
+            </h2>
+            <div id="signalsCollapse" class="accordion-collapse collapse">
+              <div class="accordion-body"><pre id="m-signals" class="mb-0 small" style="max-height:200px;overflow:auto"></pre></div>
+            </div>
+          </div>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
+              <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#rawCollapse">
+                Raw AI Response
+              </button>
+            </h2>
+            <div id="rawCollapse" class="accordion-collapse collapse">
+              <div class="accordion-body"><pre id="m-raw" class="mb-0 small" style="max-height:300px;overflow:auto"></pre></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.getElementById('detailModal').addEventListener('show.bs.modal', function(e) {
+  const btn = e.relatedTarget;
+  document.getElementById('m-id').textContent          = btn.dataset.id;
+  document.getElementById('m-timestamp').textContent   = btn.dataset.timestamp;
+  document.getElementById('m-sender').textContent      = btn.dataset.sender;
+  document.getElementById('m-subject').textContent     = btn.dataset.subject;
+  document.getElementById('m-threat').textContent      = btn.dataset.threat;
+  document.getElementById('m-confidence').textContent  = btn.dataset.confidence ? (parseFloat(btn.dataset.confidence)*100).toFixed(0)+'%' : '—';
+  document.getElementById('m-action').textContent      = btn.dataset.action;
+  document.getElementById('m-types').textContent       = btn.dataset.types;
+  document.getElementById('m-reasoning').textContent   = btn.dataset.reasoning;
+  document.getElementById('m-model').textContent       = btn.dataset.model;
+  document.getElementById('m-ms').textContent          = btn.dataset.ms;
+  try { document.getElementById('m-signals').textContent = JSON.stringify(JSON.parse(btn.dataset.signals), null, 2); }
+  catch { document.getElementById('m-signals').textContent = btn.dataset.signals; }
+  try { document.getElementById('m-raw').textContent = JSON.stringify(JSON.parse(btn.dataset.raw), null, 2); }
+  catch { document.getElementById('m-raw').textContent = btn.dataset.raw; }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,231 @@
+{% extends "base.html" %}
+{% block title %}Manual Test — VerdictMail{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-play-circle me-2"></i>Manual Test</h4>
+
+<div class="alert alert-info small">
+  <i class="bi bi-info-circle me-1"></i>
+  Runs the full parse → enrich → AI → decide pipeline as a <strong>dry run</strong>.
+  No IMAP action is applied. AI analysis may take up to 120 seconds.
+</div>
+
+<!-- Input form -->
+<div class="card mb-4">
+  <div class="card-header">
+    <ul class="nav nav-tabs card-header-tabs" id="inputTabs">
+      <li class="nav-item">
+        <a class="nav-link {% if tab != 'raw' %}active{% endif %}" href="#simple-tab" data-bs-toggle="tab">
+          Simple Form
+        </a>
+      </li>
+      <li class="nav-item">
+        <a class="nav-link {% if tab == 'raw' %}active{% endif %}" href="#raw-tab" data-bs-toggle="tab">
+          Raw RFC822
+        </a>
+      </li>
+    </ul>
+  </div>
+  <div class="card-body">
+    <form method="post" id="testForm">
+      <input type="hidden" name="tab" id="tabInput" value="{{ tab or 'simple' }}">
+      <div class="tab-content">
+        <!-- Simple -->
+        <div class="tab-pane fade {% if tab != 'raw' %}show active{% endif %}" id="simple-tab">
+          <div class="mb-2">
+            <label class="form-label small">From Address</label>
+            <input type="text" name="from_addr" class="form-control form-control-sm"
+              placeholder="sender@example.com"
+              value="{{ request.form.get('from_addr','') }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Subject</label>
+            <input type="text" name="subject" class="form-control form-control-sm"
+              placeholder="Subject line"
+              value="{{ request.form.get('subject','') }}">
+          </div>
+          <div class="mb-2">
+            <label class="form-label small">Body</label>
+            <textarea name="body" class="form-control form-control-sm" rows="6"
+              placeholder="Email body text…">{{ request.form.get('body','') }}</textarea>
+          </div>
+        </div>
+        <!-- Raw -->
+        <div class="tab-pane fade {% if tab == 'raw' %}show active{% endif %}" id="raw-tab">
+          <div class="mb-2">
+            <label class="form-label small">Raw RFC822 message (paste full headers + body)</label>
+            <textarea name="raw_rfc822" class="form-control font-monospace form-control-sm" rows="14"
+              spellcheck="false" placeholder="From: sender@example.com&#10;To: you@example.com&#10;Subject: Test&#10;&#10;Body here…">{{ request.form.get('raw_rfc822','') }}</textarea>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary mt-2">
+        <i class="bi bi-play-fill me-1"></i> Run Analysis
+      </button>
+    </form>
+  </div>
+</div>
+
+<!-- Results -->
+{% if error_msg %}
+<div class="alert alert-danger">
+  <strong>Pipeline error:</strong> {{ error_msg }}
+</div>
+{% endif %}
+
+{% if results %}
+
+<!-- Parsed message -->
+{% if results.parsed %}
+{% set p = results.parsed %}
+<div class="card mb-3 border-secondary">
+  <div class="card-header"><i class="bi bi-envelope me-1"></i>Parsed Message</div>
+  <div class="card-body small">
+    <dl class="row mb-0">
+      <dt class="col-sm-3">From</dt>       <dd class="col-sm-9">{{ p.from_header }}</dd>
+      <dt class="col-sm-3">Sender address</dt><dd class="col-sm-9">{{ p.sender_address }}</dd>
+      <dt class="col-sm-3">Sender domain</dt><dd class="col-sm-9">{{ p.sender_domain }}</dd>
+      <dt class="col-sm-3">Display name</dt><dd class="col-sm-9">{{ p.display_name or '(none)' }}</dd>
+      <dt class="col-sm-3">Subject</dt>    <dd class="col-sm-9">{{ p.subject }}</dd>
+      <dt class="col-sm-3">Date</dt>       <dd class="col-sm-9">{{ p.date }}</dd>
+      <dt class="col-sm-3">Originating IP</dt><dd class="col-sm-9">{{ p.originating_ip or '(none)' }}</dd>
+      <dt class="col-sm-3">URLs found</dt> <dd class="col-sm-9">
+        {% if p.urls %}
+          <ul class="mb-0 ps-3">{% for u in p.urls %}<li><code>{{ u }}</code></li>{% endfor %}</ul>
+        {% else %}(none){% endif %}
+      </dd>
+    </dl>
+  </div>
+</div>
+{% endif %}
+
+<!-- Enrichment -->
+{% if results.enriched %}
+{% set e = results.enriched %}
+<div class="card mb-3 border-secondary">
+  <div class="card-header"><i class="bi bi-search me-1"></i>Enrichment</div>
+  <div class="card-body small">
+    <div class="mb-2">
+      {% if e.spf_valid %}<span class="badge bg-success me-1">SPF ✓</span>{% else %}<span class="badge bg-danger me-1">SPF ✗</span>{% endif %}
+      {% if e.dkim_valid %}<span class="badge bg-success me-1">DKIM ✓</span>{% else %}<span class="badge bg-danger me-1">DKIM ✗</span>{% endif %}
+      {% if e.dmarc_valid %}<span class="badge bg-success me-1">DMARC ✓</span>{% else %}<span class="badge bg-danger me-1">DMARC ✗</span>{% endif %}
+      {% if e.display_name_spoofing %}<span class="badge bg-danger me-1">Spoofing Detected</span>{% endif %}
+      {% if e.new_domain %}<span class="badge bg-warning text-dark me-1">New Domain</span>{% endif %}
+      {% if e.dnsbl_listed and e.dnsbl_pbl_only %}<span class="badge bg-warning text-dark me-1">DNSBL: PBL only (ISP policy)</span>
+      {% elif e.dnsbl_listed %}<span class="badge bg-danger me-1">DNSBL Listed (SBL/XBL)</span>{% endif %}
+    </div>
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Domain age</dt>
+      <dd class="col-sm-9">{{ e.domain_age_days ~ ' days' if e.domain_age_days is not none else 'unknown' }}</dd>
+      {% if e.dnsbl_hits %}
+      <dt class="col-sm-3">DNSBL hits</dt>
+      <dd class="col-sm-9">{{ e.dnsbl_hits | join(', ') }}</dd>
+      {% endif %}
+      {% if e.expanded_urls %}
+      <dt class="col-sm-3">Expanded URLs</dt>
+      <dd class="col-sm-9">
+        <ul class="mb-0 ps-3">
+          {% for eu in e.expanded_urls %}
+          <li>
+            <code>{{ eu.original }}</code>
+            {% if eu.is_shortener %}<span class="badge bg-warning text-dark">shortener</span>{% endif %}
+            {% if eu.original != eu.final %} → <code>{{ eu.final }}</code>{% endif %}
+          </li>
+          {% endfor %}
+        </ul>
+      </dd>
+      {% endif %}
+      {% if e.error_notes %}
+      <dt class="col-sm-3">Notes</dt>
+      <dd class="col-sm-9 text-muted">{{ e.error_notes | join('; ') }}</dd>
+      {% endif %}
+    </dl>
+  </div>
+</div>
+{% endif %}
+
+<!-- AI result -->
+{% if results.ai %}
+{% set ai = results.ai %}
+<div class="card mb-3 border-secondary">
+  <div class="card-header"><i class="bi bi-robot me-1"></i>AI Analysis</div>
+  <div class="card-body small">
+    <div class="mb-2">
+      <span class="badge fs-6 threat-{{ ai.threat_level }} border border-secondary bg-transparent">
+        {{ ai.threat_level | upper }}
+      </span>
+      <span class="ms-2">Confidence:</span>
+      <div class="progress d-inline-flex align-middle ms-1" style="width:120px;height:10px;vertical-align:middle">
+        <div class="progress-bar
+          {% if ai.confidence >= 0.8 %}bg-danger
+          {% elif ai.confidence >= 0.55 %}bg-warning
+          {% else %}bg-success{% endif %}"
+          style="width:{{ (ai.confidence*100)|int }}%"></div>
+      </div>
+      <span class="ms-1">{{ '%.0f%%' % (ai.confidence*100) }}</span>
+    </div>
+    <dl class="row mb-0">
+      <dt class="col-sm-3">Threat types</dt>
+      <dd class="col-sm-9">{{ ai.threat_types | join(', ') if ai.threat_types else '(none)' }}</dd>
+      <dt class="col-sm-3">Recommended</dt>
+      <dd class="col-sm-9">{{ ai.recommended_action }}</dd>
+      <dt class="col-sm-3">Reasoning</dt>
+      <dd class="col-sm-9">{{ ai.reasoning }}</dd>
+    </dl>
+    <div class="accordion mt-2" id="aiAccordion">
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed py-1 small" type="button"
+            data-bs-toggle="collapse" data-bs-target="#signalsBlock">Signals JSON</button>
+        </h2>
+        <div id="signalsBlock" class="accordion-collapse collapse">
+          <div class="accordion-body p-2">
+            <pre class="mb-0 small">{{ ai.signals | tojson(indent=2) }}</pre>
+          </div>
+        </div>
+      </div>
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed py-1 small" type="button"
+            data-bs-toggle="collapse" data-bs-target="#rawBlock">Raw AI Response</button>
+        </h2>
+        <div id="rawBlock" class="accordion-collapse collapse">
+          <div class="accordion-body p-2">
+            <pre class="mb-0 small" style="max-height:300px;overflow:auto">{{ ai.raw_response }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Decision -->
+{% if results.decision %}
+<div class="card mb-3 border-secondary">
+  <div class="card-header"><i class="bi bi-check2-circle me-1"></i>Final Decision</div>
+  <div class="card-body text-center py-4">
+    {% set act = results.decision.value %}
+    {% if act == 'pass' %}<span class="badge badge-pass fs-4 p-3">PASS</span>
+    {% elif act == 'flag' %}<span class="badge badge-flag fs-4 p-3">FLAG</span>
+    {% elif act == 'move_to_junk' %}<span class="badge badge-junk fs-4 p-3">MOVE TO JUNK</span>
+    {% else %}<span class="badge bg-secondary fs-4 p-3">{{ act | upper }}</span>{% endif %}
+    <p class="text-muted mt-3 mb-0 small">Dry run — no IMAP action applied.</p>
+  </div>
+</div>
+{% endif %}
+
+{% endif %}{# end results #}
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+// Keep tab state in sync with the hidden input
+document.querySelectorAll('#inputTabs .nav-link').forEach(function(link) {
+  link.addEventListener('click', function() {
+    document.getElementById('tabInput').value =
+      this.getAttribute('href') === '#raw-tab' ? 'raw' : 'simple';
+  });
+});
+</script>
+{% endblock %}

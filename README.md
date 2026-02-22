@@ -1,0 +1,264 @@
+# VerdictMail
+
+AI-powered email threat analysis daemon for Gmail. Monitors your inbox via IMAP IDLE and runs every incoming message through a multi-stage enrichment and AI analysis pipeline — automatically passing, flagging, or moving suspicious mail to Junk.
+
+---
+
+## Features
+
+- **Real-time monitoring** via IMAP IDLE (push, no polling)
+- **Multi-stage pipeline**: parse → whitelist check → enrich → AI → decide → act → audit
+- **Enrichment signals**: SPF, DKIM, DMARC, DNSBL reputation, WHOIS domain age, display-name spoofing, URL expansion
+- **AI providers**: OpenAI, Anthropic, or a local [Ollama](https://ollama.com) instance
+- **Three actions**: pass (no change), flag (IMAP keyword), move to `[Gmail]/Spam`
+- **Whitelist**: exempt trusted senders from analysis by email, domain, or subject pattern
+- **Web UI**: Flask admin interface — dashboard, audit log, configuration, whitelist, credentials, manual test, documentation
+- **Audit log**: full SQLite record of every decision including signals, reasoning, and processing time
+
+---
+
+## Architecture
+
+```
+IMAP IDLE (main thread)
+    │
+    └─▶ ThreadPoolExecutor (worker threads)
+            │
+            ├── message_parser   — RFC 822 parsing, URL extraction
+            ├── whitelist        — bypass enrichment/AI for trusted senders
+            ├── enrichment       — SPF/DMARC/DKIM/DNSBL/WHOIS/URL expansion
+            ├── ai_analyzer      — OpenAI / Anthropic / Ollama via httpx
+            ├── decision_engine  — threshold logic → PASS / FLAG / MOVE_TO_JUNK
+            ├── imap_actions     — set $VerdictMail-Suspect keyword or copy+delete
+            └── audit_logger     — SQLite + rotating log file
+```
+
+---
+
+## Requirements
+
+- Ubuntu 22.04 LTS or 24.04 LTS (or any systemd-based Linux)
+- Python 3.11+
+- A Gmail account with IMAP enabled and a [Gmail App Password](https://support.google.com/accounts/answer/185833) generated
+- One of:
+  - An OpenAI API key
+  - An Anthropic API key
+  - A running [Ollama](https://ollama.com) instance with a model pulled (e.g. `ollama pull qwen2.5-coder:14b`)
+
+---
+
+## Installation
+
+### 1. Create the service user and directories
+
+```bash
+useradd -r -s /bin/false -M -d /opt/mailsentinel mailsentinel
+mkdir -p /opt/mailsentinel /var/log/mailsentinel
+chown mailsentinel:mailsentinel /opt/mailsentinel /var/log/mailsentinel
+```
+
+### 2. Clone the repository
+
+```bash
+git clone https://github.com/ascarola/verdictmail.git /opt/mailsentinel
+chown -R mailsentinel:mailsentinel /opt/mailsentinel
+```
+
+### 3. Create the virtual environment
+
+```bash
+python3 -m venv /opt/mailsentinel/venv
+/opt/mailsentinel/venv/bin/pip install --upgrade pip
+/opt/mailsentinel/venv/bin/pip install -r /opt/mailsentinel/requirements.txt
+```
+
+### 4. Configure credentials
+
+```bash
+cp /opt/mailsentinel/.env.example /opt/mailsentinel/.env
+chown mailsentinel:mailsentinel /opt/mailsentinel/.env
+chmod 600 /opt/mailsentinel/.env
+```
+
+Edit `/opt/mailsentinel/.env` and fill in your Gmail credentials and AI provider API key.
+
+### 5. Configure the application
+
+```bash
+cp /opt/mailsentinel/config/mailsentinel.yaml.example /opt/mailsentinel/config/mailsentinel.yaml
+chown mailsentinel:mailsentinel /opt/mailsentinel/config/mailsentinel.yaml
+```
+
+Edit `/opt/mailsentinel/config/mailsentinel.yaml` and set at minimum:
+- `ai.provider` and `ai.model`
+- `timezone` (IANA name, e.g. `America/New_York`)
+
+### 6. Install systemd units
+
+```bash
+cp /opt/mailsentinel/systemd/verdictmail.service /etc/systemd/system/
+cp /opt/mailsentinel/systemd/verdictmail-web.service /etc/systemd/system/
+systemctl daemon-reload
+```
+
+### 7. Install the sudoers rule (allows the web UI to restart the daemon)
+
+```bash
+cp /opt/mailsentinel/systemd/mailsentinel-sudoers /etc/sudoers.d/mailsentinel
+chmod 440 /etc/sudoers.d/mailsentinel
+```
+
+### 8. Enable and start
+
+```bash
+systemctl enable --now verdictmail verdictmail-web
+systemctl status verdictmail verdictmail-web
+```
+
+---
+
+## Configuration
+
+All non-secret settings are in `/opt/mailsentinel/config/mailsentinel.yaml`.
+See `config/mailsentinel.yaml.example` for a fully-annotated template.
+Changes require a daemon restart: `systemctl restart verdictmail`.
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `ai.provider` | `openai` | AI backend: `openai`, `anthropic`, or `ollama` |
+| `ai.model` | `gpt-4o-mini` | Model name passed to the provider |
+| `ai.timeout_seconds` | `120` | Per-request AI timeout |
+| `ai.ollama_base_url` | `http://localhost:11434` | Ollama base URL (ollama provider only) |
+| `thresholds.flag` | `0.55` | Minimum confidence to flag medium/high threat |
+| `thresholds.junk` | `0.80` | Minimum confidence to move high threat to Junk |
+| `imap.host` | `imap.gmail.com` | IMAP server |
+| `imap.folder` | `INBOX` | Folder to monitor |
+| `worker_threads` | `4` | Concurrent message processors |
+| `startup_scan_limit` | `20` | Max unread messages to process on startup |
+| `whitelist.enabled` | `true` | Master on/off for whitelist |
+| `whitelist.rules` | `[]` | List of whitelist rule objects |
+| `timezone` | `UTC` | IANA timezone for dashboard and audit log |
+
+---
+
+## Actions
+
+| Action | When | Effect |
+|--------|------|--------|
+| `pass` | Clean mail, low threat, or whitelisted | No IMAP changes |
+| `flag` | Medium/high threat at sufficient confidence | Sets `$VerdictMail-Suspect` IMAP keyword; message stays in inbox |
+| `move_to_junk` | High/critical threat at high confidence | Copies to `[Gmail]/Spam`, deletes original |
+
+> **Note:** Gmail's web UI does not display custom IMAP keywords. The `$VerdictMail-Suspect` flag is visible to standard IMAP clients and is always recorded in the audit log.
+
+---
+
+## Whitelist
+
+The whitelist bypasses enrichment and AI analysis for trusted senders. Rules are evaluated in order; the first match wins.
+
+Each rule matches on one or more of:
+- `sender` — exact email address (case-insensitive)
+- `sender_domain` — all addresses at a domain
+- `subject_contains` — case-insensitive substring of Subject
+
+Multiple fields in one rule require **all** to match (AND logic). Manage rules via the web UI or by editing `mailsentinel.yaml` directly (restart required).
+
+---
+
+## Web UI
+
+The Flask admin interface runs on port 80 alongside the daemon.
+
+| Page | Path | Description |
+|------|------|-------------|
+| Dashboard | `/` | Stats, threat chart, recent emails, service status; start/stop/restart daemon |
+| Audit Log | `/audit` | Paginated, searchable table with full-detail modal |
+| Configuration | `/config` | In-browser YAML editor + AI provider quick-config |
+| Whitelist | `/whitelist` | Add, edit, and delete whitelist rules |
+| Credentials | `/credentials` | Gmail credentials and API key management |
+| Manual Test | `/test` | Dry-run pipeline on a submitted email |
+| Documentation | `/docs` | In-app reference manual |
+| About | `/about` | Version and tech stack info |
+
+A web UI password is set on first visit. The password hash is stored in `mailsentinel.yaml`; the plaintext password is never stored.
+
+---
+
+## Verification
+
+### Start / stop / restart the daemon from the web UI
+
+The Dashboard provides **Stop**, **Start/Resume**, and **Restart** buttons.
+VerdictMail auto-detects its environment and chooses the appropriate control strategy:
+
+| Environment | Strategy | Stop behaviour |
+|-------------|----------|----------------|
+| Bare metal / privileged container | `sudo systemctl` | Daemon fully stopped; unit marked inactive |
+| Unprivileged LXC (e.g. Proxmox) | Signal + pause flag | Daemon stays running but skips incoming messages; emails remain UNSEEN until resumed |
+
+### Check Ollama connectivity (if using Ollama provider)
+
+```bash
+curl http://localhost:11434/api/tags
+```
+
+### Test IMAP connectivity
+
+```bash
+python3 -c "
+import imapclient
+c = imapclient.IMAPClient('imap.gmail.com', ssl=True)
+c.login('YOUR_GMAIL_ADDRESS', 'YOUR_APP_PASSWORD')
+print(c.list_folders())
+c.logout()
+"
+```
+
+### Run the unit tests
+
+```bash
+cd /opt/mailsentinel
+PYTHONPATH=src /opt/mailsentinel/venv/bin/python -m pytest tests/ -v
+```
+
+### Watch live logs
+
+```bash
+journalctl -u verdictmail -f
+tail -f /var/log/mailsentinel/mailsentinel.log
+```
+
+### Inspect the audit database
+
+```bash
+sqlite3 /var/log/mailsentinel/mailsentinel.db \
+  "SELECT id, subject, threat_level, printf('%.0f%%', confidence*100),
+          action_taken, reasoning
+   FROM audit_log ORDER BY id DESC LIMIT 10;"
+```
+
+---
+
+## Troubleshooting
+
+| Symptom | Check |
+|---------|-------|
+| Service won't start | `journalctl -u verdictmail -n 50` — look for config or credential errors |
+| AI timeouts | Verify provider connectivity and `ai.timeout_seconds` |
+| IMAP auth failure | Confirm you are using an App Password (not your account password) and that IMAP is enabled in Gmail settings |
+| No messages processed | The daemon processes new/unseen messages; use the **Manual Test** page to verify the pipeline works |
+| DNSBL slow | DNS resolution timeouts are 3 s per list; check network connectivity |
+
+---
+
+## Log rotation
+
+The rotating file handler caps each log file at 10 MB with 5 backups retained.
+System-level rotation with `logrotate` is not required but can be added at `/etc/logrotate.d/verdictmail`.
+
+---
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -1,0 +1,267 @@
+{% extends "base.html" %}
+{% block title %}Configuration — VerdictMail{% endblock %}
+
+{% block content %}
+<h4 class="mb-3"><i class="bi bi-gear me-2"></i>Configuration</h4>
+
+<!-- AI Provider quick-config -->
+{% set ai_cfg = cfg.get('ai', cfg.get('ollama', {})) %}
+{% set ai_provider = ai_cfg.get('provider', 'ollama') %}
+<div class="card mb-4" style="max-width:620px">
+  <div class="card-header"><i class="bi bi-robot me-1"></i> AI Provider</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('config_ai') }}">
+      <div class="row g-3 align-items-end">
+        <div class="col-sm-4">
+          <label class="form-label small">Provider</label>
+          <select name="ai_provider" id="aiProvider" class="form-select form-select-sm"
+            onchange="updateModelPlaceholder()">
+            <option value="ollama"    {% if ai_provider == 'ollama' %}selected{% endif %}>Ollama (local)</option>
+            <option value="anthropic" {% if ai_provider == 'anthropic' %}selected{% endif %}>Anthropic</option>
+            <option value="openai"    {% if ai_provider == 'openai' %}selected{% endif %}>OpenAI</option>
+          </select>
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label small">Model</label>
+          <div class="position-relative">
+            <div class="input-group input-group-sm">
+              <input type="text" name="ai_model" id="aiModel" class="form-control form-control-sm"
+                value="{{ ai_cfg.get('model', 'qwen2.5-coder:14b') }}"
+                placeholder="qwen2.5-coder:14b"
+                autocomplete="off"
+                oninput="filterModelDropdown(this.value)"
+                onfocus="openModelDropdown(this.value)">
+              <button type="button" id="fetchModelsBtn" class="btn btn-outline-secondary"
+                      title="Fetch available models from Ollama"
+                      {% if ai_provider != 'ollama' %}style="display:none"{% endif %}
+                      onclick="fetchOllamaModels()">
+                <i class="bi bi-arrow-repeat" id="fetchModelsIcon"></i>
+              </button>
+            </div>
+            <ul id="ollamaModelDropdown"
+                style="display:none;position:fixed;z-index:1055;
+                       list-style:none;margin:0;padding:.25rem;
+                       background-color:#2b3040;border:1px solid rgba(255,255,255,.18);
+                       border-radius:.375rem;max-height:220px;overflow-y:auto;font-size:.85rem;
+                       box-shadow:0 4px 16px rgba(0,0,0,.55)">
+            </ul>
+          </div>
+          <div id="fetchModelsMsg" class="form-text" style="min-height:1.2em"></div>
+        </div>
+        <div class="col-sm-4">
+          <label class="form-label small">Timeout (s)</label>
+          <input type="number" name="ai_timeout" class="form-control form-control-sm"
+            value="{{ ai_cfg.get('timeout_seconds', 120) }}" min="10" max="600">
+        </div>
+        <div class="col-12" id="ollamaUrlRow" {% if ai_provider != 'ollama' %}style="display:none"{% endif %}>
+          <label class="form-label small">Ollama Base URL</label>
+          <input type="text" name="ollama_base_url" class="form-control form-control-sm"
+            value="{{ ai_cfg.get('ollama_base_url', ai_cfg.get('base_url', 'http://localhost:11434')) }}"
+            placeholder="http://localhost:11434">
+        </div>
+      </div>
+      <div class="mt-3">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="bi bi-floppy me-1"></i> Apply AI Settings
+        </button>
+        <span class="text-muted small ms-2">API keys are set on the <a href="{{ url_for('credentials') }}" class="text-info">Credentials</a> page.</span>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Timezone quick-config -->
+{% set cfg_tz = cfg.get('timezone', 'UTC') %}
+<div class="card mb-4" style="max-width:620px">
+  <div class="card-header"><i class="bi bi-clock me-1"></i> Timezone</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('config_timezone') }}">
+      <div class="row g-3 align-items-end">
+        <div class="col-sm-8">
+          <label class="form-label small">Timezone (IANA name)</label>
+          <input type="text" name="timezone" class="form-control form-control-sm"
+            value="{{ cfg_tz }}" list="tz-suggestions" placeholder="America/New_York">
+          <datalist id="tz-suggestions">
+            <option value="America/New_York">
+            <option value="America/Chicago">
+            <option value="America/Denver">
+            <option value="America/Los_Angeles">
+            <option value="America/Phoenix">
+            <option value="America/Anchorage">
+            <option value="Pacific/Honolulu">
+            <option value="UTC">
+          </datalist>
+          <div class="form-text">Used for "Today" counts, audit log display, and dashboard timestamps. Current: <strong>{{ cfg_tz }}</strong></div>
+        </div>
+        <div class="col-sm-4">
+          <button type="submit" class="btn btn-sm btn-primary w-100">
+            <i class="bi bi-floppy me-1"></i> Apply Timezone
+          </button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Raw YAML editor -->
+<div class="alert alert-info small">
+  <i class="bi bi-info-circle me-1"></i>
+  Full config at <code>/opt/mailsentinel/config/mailsentinel.yaml</code>.
+  Changes take effect after restarting the daemon.
+</div>
+
+<form method="post">
+  <div class="card mb-3">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span>mailsentinel.yaml</span>
+      <small class="text-muted">Valid YAML required</small>
+    </div>
+    <div class="card-body p-0">
+      <textarea name="yaml_content" class="form-control font-monospace border-0 rounded-0"
+        rows="30" spellcheck="false" style="font-size:.85rem;background:#1a1d23;color:#e9ecef">{{ yaml_content }}</textarea>
+    </div>
+  </div>
+  <div class="d-flex gap-2">
+    <button type="submit" class="btn btn-primary">
+      <i class="bi bi-floppy me-1"></i> Save Configuration
+    </button>
+    <a href="{{ url_for('config_editor') }}" class="btn btn-outline-secondary">Discard Changes</a>
+    <form method="post" action="{{ url_for('service_restart') }}" class="ms-auto">
+      <button class="btn btn-outline-warning"
+        onclick="return confirm('Save first, then restart daemon?')">
+        <i class="bi bi-arrow-clockwise me-1"></i>Restart Daemon
+      </button>
+    </form>
+  </div>
+</form>
+<!-- Danger zone -->
+<div class="card mb-4 border-danger" style="max-width:620px">
+  <div class="card-header text-danger"><i class="bi bi-exclamation-triangle me-1"></i> Danger Zone</div>
+  <div class="card-body">
+    <div class="d-flex align-items-center justify-content-between">
+      <div>
+        <strong class="small">Clear Audit Log</strong>
+        <div class="text-muted small">Permanently deletes all audit log records and statistics. Cannot be undone.</div>
+      </div>
+      <form method="post" action="{{ url_for('clear_logs') }}" class="ms-3">
+        <button type="submit" class="btn btn-sm btn-danger"
+          onclick="return confirm('Delete ALL audit log records? This cannot be undone.')">
+          <i class="bi bi-trash me-1"></i> Clear Logs
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const modelSuggestions = {
+  ollama:    'qwen2.5-coder:14b',
+  anthropic: 'claude-haiku-4-5-20251001',
+  openai:    'gpt-4o-mini',
+};
+
+function updateModelPlaceholder() {
+  const provider = document.getElementById('aiProvider').value;
+  const modelEl  = document.getElementById('aiModel');
+  const urlRow   = document.getElementById('ollamaUrlRow');
+  const fetchBtn = document.getElementById('fetchModelsBtn');
+  const fetchMsg = document.getElementById('fetchModelsMsg');
+  modelEl.placeholder = modelSuggestions[provider] || '';
+  urlRow.style.display   = provider === 'ollama' ? '' : 'none';
+  fetchBtn.style.display = provider === 'ollama' ? '' : 'none';
+  if (provider !== 'ollama') {
+    fetchMsg.textContent = '';
+    closeModelDropdown();
+    _ollamaModels = [];
+  }
+}
+
+// ── Custom model dropdown ────────────────────────────────────────────────────
+
+let _ollamaModels = [];
+
+function renderModelDropdown(items) {
+  const dd = document.getElementById('ollamaModelDropdown');
+  if (!items.length) { dd.style.display = 'none'; return; }
+  dd.innerHTML = items.map(m =>
+    `<li><button type="button" class="dropdown-item rounded" onclick="selectOllamaModel('${m}')">${m}</button></li>`
+  ).join('');
+  // Use fixed positioning so no parent overflow/stacking context can clip the dropdown
+  const rect = document.getElementById('aiModel').closest('.input-group').getBoundingClientRect();
+  dd.style.top   = (rect.bottom + 4) + 'px';
+  dd.style.left  = rect.left + 'px';
+  dd.style.width = rect.width + 'px';
+  dd.style.display = 'block';
+}
+
+function filterModelDropdown(val) {
+  if (!_ollamaModels.length) return;
+  const q = val.toLowerCase();
+  renderModelDropdown(q ? _ollamaModels.filter(m => m.toLowerCase().includes(q)) : _ollamaModels);
+}
+
+function openModelDropdown(val) {
+  if (_ollamaModels.length) filterModelDropdown(val);
+}
+
+function closeModelDropdown() {
+  document.getElementById('ollamaModelDropdown').style.display = 'none';
+}
+
+function selectOllamaModel(name) {
+  document.getElementById('aiModel').value = name;
+  closeModelDropdown();
+}
+
+// Dismiss when clicking outside the input group
+document.addEventListener('click', function(e) {
+  const wrap = document.getElementById('aiModel').closest('.position-relative');
+  if (wrap && !wrap.contains(e.target)) closeModelDropdown();
+});
+
+// ── Fetch from Ollama ────────────────────────────────────────────────────────
+
+function fetchOllamaModels() {
+  const url  = document.querySelector('[name=ollama_base_url]').value.trim();
+  const icon = document.getElementById('fetchModelsIcon');
+  const btn  = document.getElementById('fetchModelsBtn');
+  const msg  = document.getElementById('fetchModelsMsg');
+
+  btn.disabled = true;
+  icon.className = 'bi bi-hourglass-split';
+  msg.textContent = 'Fetching…';
+  msg.className = 'form-text text-muted';
+  closeModelDropdown();
+
+  fetch('/api/ollama-models?url=' + encodeURIComponent(url))
+    .then(r => r.json())
+    .then(data => {
+      if (data.ok && data.models.length) {
+        _ollamaModels = data.models;
+        renderModelDropdown(_ollamaModels);
+        icon.className = 'bi bi-check-lg';
+        msg.textContent = data.models.length + ' model(s) found — select one below or type manually.';
+        msg.className = 'form-text text-success';
+      } else {
+        _ollamaModels = [];
+        icon.className = 'bi bi-exclamation-triangle';
+        msg.textContent = data.msg || 'No models found.';
+        msg.className = 'form-text text-warning';
+      }
+    })
+    .catch(err => {
+      _ollamaModels = [];
+      icon.className = 'bi bi-x-circle';
+      msg.textContent = 'Request failed: ' + err;
+      msg.className = 'form-text text-danger';
+    })
+    .finally(() => {
+      btn.disabled = false;
+      setTimeout(() => { icon.className = 'bi bi-arrow-repeat'; }, 4000);
+    });
+}
+</script>
+{% endblock %}

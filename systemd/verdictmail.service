@@ -1,0 +1,22 @@
+[Unit]
+Description=MailSentinel AI Email Threat Analysis Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mailsentinel
+Group=mailsentinel
+WorkingDirectory=/opt/mailsentinel
+EnvironmentFile=/opt/mailsentinel/.env
+Environment=PYTHONPATH=/opt/mailsentinel/src
+ExecStart=/opt/mailsentinel/venv/bin/python -m mailsentinel.main
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=150
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mailsentinel
+
+[Install]
+WantedBy=multi-user.target

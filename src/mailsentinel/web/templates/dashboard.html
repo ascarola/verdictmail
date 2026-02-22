@@ -1,0 +1,377 @@
+{% extends "base.html" %}
+{% block title %}Dashboard — VerdictMail{% endblock %}
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <h4 class="mb-0"><i class="bi bi-speedometer2 me-2"></i>Dashboard</h4>
+  <div class="d-flex align-items-center gap-2">
+    {% if service_status == 'active' %}
+      <span class="badge bg-success"><i class="bi bi-circle-fill me-1" style="font-size:.55rem"></i>Daemon active</span>
+      <form method="post" action="{{ url_for('service_stop') }}" class="d-inline">
+        <button class="btn btn-sm btn-outline-danger"
+                onclick="return confirm('Stop the daemon? Email monitoring will pause until you start it again.')">
+          <i class="bi bi-stop-circle"></i> Stop
+        </button>
+      </form>
+      <form method="post" action="{{ url_for('service_restart') }}" class="d-inline">
+        <button class="btn btn-sm btn-outline-warning"
+                onclick="return confirm('Restart the VerdictMail daemon?')">
+          <i class="bi bi-arrow-clockwise"></i> Restart
+        </button>
+      </form>
+    {% elif service_status == 'paused' %}
+      <span class="badge bg-warning text-dark"><i class="bi bi-pause-circle-fill me-1" style="font-size:.8rem"></i>Daemon paused</span>
+      <form method="post" action="{{ url_for('service_start') }}" class="d-inline">
+        <button class="btn btn-sm btn-success"
+                onclick="return confirm('Resume the VerdictMail daemon?')">
+          <i class="bi bi-play-circle"></i> Resume
+        </button>
+      </form>
+      <form method="post" action="{{ url_for('service_restart') }}" class="d-inline">
+        <button class="btn btn-sm btn-outline-warning"
+                onclick="return confirm('Restart the VerdictMail daemon?')">
+          <i class="bi bi-arrow-clockwise"></i> Restart
+        </button>
+      </form>
+    {% elif service_status == 'inactive' %}
+      <span class="badge bg-secondary"><i class="bi bi-circle me-1" style="font-size:.55rem"></i>Daemon stopped</span>
+      <form method="post" action="{{ url_for('service_start') }}" class="d-inline">
+        <button class="btn btn-sm btn-success"
+                onclick="return confirm('Start the VerdictMail daemon?')">
+          <i class="bi bi-play-circle"></i> Start Daemon
+        </button>
+      </form>
+    {% else %}
+      <span class="badge bg-warning text-dark"><i class="bi bi-circle me-1" style="font-size:.55rem"></i>{{ service_status }}</span>
+      <form method="post" action="{{ url_for('service_restart') }}" class="d-inline">
+        <button class="btn btn-sm btn-outline-warning"
+                onclick="return confirm('Restart the VerdictMail daemon?')">
+          <i class="bi bi-arrow-clockwise"></i> Restart
+        </button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+
+<!-- Stat cards -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card stat-card text-center h-100">
+      <div class="card-body py-3">
+        <div class="display-6 text-primary">{{ stats.total }}</div>
+        <div class="text-muted small">Total Analyzed</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card text-center h-100">
+      <div class="card-body py-3">
+        <div class="display-6 text-info">{{ stats.today }}</div>
+        <div class="text-muted small">Today</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card text-center h-100">
+      <div class="card-body py-3">
+        <div class="display-6 text-danger">{{ stats.move_to_junk }}</div>
+        <div class="text-muted small">Moved to Junk</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card text-center h-100">
+      <div class="card-body py-3">
+        <div class="display-6 text-warning">{{ stats.flag }}</div>
+        <div class="text-muted small">Flagged</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card text-center h-100">
+      <div class="card-body py-3">
+        <div class="display-6 text-success">{{ stats.pass }}</div>
+        <div class="text-muted small">Passed</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card text-center h-100">
+      <div class="card-body py-3">
+        <div class="display-6 text-secondary">{{ stats.error }}</div>
+        <div class="text-muted small">Errors</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card text-center h-100">
+      <div class="card-body py-3">
+        <div class="display-6">{{ stats.avg_ms }}</div>
+        <div class="text-muted small">Avg Processing (ms)</div>
+      </div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card stat-card text-center h-100">
+      <div class="card-body py-3">
+        <div class="display-6 text-primary" style="font-size:1.1rem!important;padding-top:.4rem">{{ ai_model }}</div>
+        <div class="text-muted small">AI Model</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Charts -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">Threat Level Distribution</div>
+      <div class="card-body d-flex align-items-center justify-content-center" style="height:220px">
+        <canvas id="threatChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-8">
+    <div class="card h-100">
+      <div class="card-header">Actions — Last 7 Days</div>
+      <div class="card-body" style="height:220px">
+        <canvas id="actionsChart"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Recent emails -->
+<div class="card mb-4">
+  <div class="card-header">Recent Analyzed Emails</div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0">
+      <thead class="table-dark">
+        <tr>
+          <th>#</th><th>Timestamp</th><th>Sender</th><th>Subject</th>
+          <th>Threat</th><th>Confidence</th><th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in recent %}
+        <tr>
+          <td class="text-muted">{{ r['id'] }}</td>
+          <td class="text-muted small">{{ r['timestamp'] | local_dt(tz_name) }}</td>
+          <td class="small">{{ r['sender'] or '—' }}</td>
+          <td class="small">{{ r['subject'] or '—' }}</td>
+          <td><span class="threat-{{ r['threat_level'] or 'none' }}">{{ r['threat_level'] or 'none' }}</span></td>
+          <td>
+            {% if r['confidence'] is not none %}
+              <div class="progress" style="height:6px;min-width:60px">
+                <div class="progress-bar" style="width:{{ (r['confidence']*100)|int }}%"></div>
+              </div>
+              <small>{{ '%.0f%%' % (r['confidence']*100) }}</small>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% set act = r['action_taken'] or 'error' %}
+            {% if act == 'pass' %}<span class="badge badge-pass">pass</span>
+            {% elif act == 'flag' %}<span class="badge badge-flag">flag</span>
+            {% elif act == 'move_to_junk' %}<span class="badge badge-junk">junk</span>
+            {% else %}<span class="badge badge-error">{{ act }}</span>{% endif %}
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-3">No data yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer text-end">
+    <a href="{{ url_for('audit') }}" class="btn btn-sm btn-outline-secondary">View full log →</a>
+  </div>
+</div>
+
+{% if errors %}
+<div class="card border-danger mb-4">
+  <div class="card-header text-danger">Recent Errors</div>
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-dark"><tr><th>#</th><th>Timestamp</th><th>Sender</th><th>Subject</th><th>Error</th></tr></thead>
+      <tbody>
+        {% for r in errors %}
+        <tr>
+          <td class="text-muted">{{ r['id'] }}</td>
+          <td class="small text-muted">{{ r['timestamp'][:19] if r['timestamp'] else '—' }}</td>
+          <td class="small">{{ r['sender'] or '—' }}</td>
+          <td class="small">{{ r['subject'] or '—' }}</td>
+          <td class="small text-danger">{{ r['action_taken'] }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- Live Status Panel -->
+<div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-activity me-2"></i>Live Status</span>
+    <span class="small text-muted" id="status-updated"></span>
+  </div>
+  <div class="card-body pb-2">
+    <!-- Connection info row -->
+    <div class="row g-3 mb-3">
+      <div class="col-sm-4">
+        <div class="small text-muted mb-1">IMAP Connection</div>
+        <div id="imap-status-badge">
+          <span class="badge bg-secondary">checking…</span>
+        </div>
+      </div>
+      <div class="col-sm-4">
+        <div class="small text-muted mb-1">Monitored Mailbox</div>
+        <div id="status-mailbox" class="small font-monospace">—</div>
+      </div>
+      <div class="col-sm-4">
+        <div class="small text-muted mb-1">Last Processed</div>
+        <div id="status-last" class="small">—</div>
+      </div>
+    </div>
+    <!-- Log tail (collapsible) -->
+    <div class="accordion accordion-flush" id="logAccordion">
+      <div class="accordion-item" style="background:transparent;border:1px solid #2e3238;border-radius:.375rem">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed py-2 small" type="button"
+            data-bs-toggle="collapse" data-bs-target="#logCollapse"
+            style="background:#1a1d23;color:#adb5bd;border-radius:.375rem">
+            <i class="bi bi-terminal me-2"></i>Daemon Log <span class="text-muted ms-2" id="log-line-count"></span>
+          </button>
+        </h2>
+        <div id="logCollapse" class="accordion-collapse collapse">
+          <div class="accordion-body p-0">
+            <pre id="log-tail"
+              style="margin:0;padding:.75rem;font-size:.72rem;line-height:1.5;
+                     max-height:320px;overflow-y:auto;background:#0d1117;
+                     color:#adb5bd;border-radius:0 0 .375rem .375rem"></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const threatCtx = document.getElementById('threatChart');
+new Chart(threatCtx, {
+  type: 'doughnut',
+  data: {
+    labels: ['None', 'Low', 'Medium', 'High', 'Critical'],
+    datasets: [{
+      data: [
+        {{ threat_counts.none }}, {{ threat_counts.low }},
+        {{ threat_counts.medium }}, {{ threat_counts.high }}, {{ threat_counts.critical }}
+      ],
+      backgroundColor: ['#6c757d','#0dcaf0','#ffc107','#fd7e14','#dc3545'],
+      borderWidth: 1
+    }]
+  },
+  options: { plugins: { legend: { position: 'bottom', labels: { color: '#adb5bd', boxWidth: 12 } } } }
+});
+
+const actCtx = document.getElementById('actionsChart');
+new Chart(actCtx, {
+  type: 'bar',
+  data: {
+    labels: {{ chart_labels|safe }},
+    datasets: [
+      { label: 'Pass',  data: {{ chart_pass|safe }},  backgroundColor: '#198754' },
+      { label: 'Flag',  data: {{ chart_flag|safe }},  backgroundColor: '#ffc107' },
+      { label: 'Junk',  data: {{ chart_junk|safe }},  backgroundColor: '#dc3545' },
+    ]
+  },
+  options: {
+    responsive: true, maintainAspectRatio: false,
+    scales: {
+      x: { stacked: true, ticks: { color: '#adb5bd' }, grid: { color: '#2e3238' } },
+      y: { stacked: true, ticks: { color: '#adb5bd', precision: 0 }, grid: { color: '#2e3238' } }
+    },
+    plugins: { legend: { labels: { color: '#adb5bd', boxWidth: 12 } } }
+  }
+});
+
+// ---------------------------------------------------------------------------
+// Live status polling
+// ---------------------------------------------------------------------------
+function colorLine(line) {
+  if (line.includes('[ERROR]') || line.includes('[CRITICAL]')) return 'color:#dc3545';
+  if (line.includes('[WARNING]'))  return 'color:#ffc107';
+  if (line.includes('[INFO]'))     return 'color:#adb5bd';
+  if (line.includes('[DEBUG]'))    return 'color:#6c757d';
+  return 'color:#adb5bd';
+}
+
+function refreshStatus() {
+  fetch('{{ url_for("api_status") }}')
+    .then(r => r.json())
+    .then(data => {
+      // IMAP badge
+      const badgeEl = document.getElementById('imap-status-badge');
+      const statusMap = {
+        connected:    ['bg-success',  'bi-wifi',         'Connected'],
+        connecting:   ['bg-warning',  'bi-hourglass-split','Connecting…'],
+        reconnecting: ['bg-warning',  'bi-arrow-repeat', 'Reconnecting…'],
+        error:        ['bg-danger',   'bi-wifi-off',     'Error'],
+        unknown:      ['bg-secondary','bi-question-circle','Unknown'],
+      };
+      const [cls, icon, label] = statusMap[data.imap_status] || statusMap.unknown;
+      badgeEl.innerHTML = `<span class="badge ${cls}"><i class="bi ${icon} me-1"></i>${label}</span>`;
+
+      // Mailbox
+      document.getElementById('status-mailbox').textContent = data.mailbox || '—';
+
+      // Last processed
+      const lastEl = document.getElementById('status-last');
+      if (data.last_email) {
+        const e = data.last_email;
+        const actClass = e.action_taken === 'pass' ? 'text-success'
+                       : e.action_taken === 'flag' ? 'text-warning'
+                       : e.action_taken === 'move_to_junk' ? 'text-danger'
+                       : 'text-muted';
+        lastEl.innerHTML = `<span class="${actClass}">${e.action_taken || '—'}</span>`
+          + ` &mdash; <span class="text-muted">${e.timestamp_local || ''}</span>`
+          + `<br><span class="text-truncate d-block" style="max-width:220px" title="${e.subject || ''}">`
+          + `${(e.subject || '—').substring(0, 50)}</span>`;
+      } else {
+        lastEl.textContent = '—';
+      }
+
+      // Log tail
+      const pre = document.getElementById('log-tail');
+      if (data.log_lines && data.log_lines.length) {
+        pre.innerHTML = data.log_lines.map(l =>
+          `<span style="${colorLine(l)}">${l.replace(/</g,'&lt;').replace(/>/g,'&gt;')}</span>`
+        ).join('\n');
+        // Auto-scroll to bottom only if user hasn't scrolled up
+        if (pre.scrollHeight - pre.scrollTop < pre.clientHeight + 40) {
+          pre.scrollTop = pre.scrollHeight;
+        }
+        document.getElementById('log-line-count').textContent =
+          `(${data.log_lines.length} lines)`;
+      }
+
+      // Updated timestamp
+      document.getElementById('status-updated').textContent =
+        'updated ' + new Date().toLocaleTimeString();
+    })
+    .catch(() => {
+      document.getElementById('imap-status-badge').innerHTML =
+        '<span class="badge bg-secondary">unavailable</span>';
+    });
+}
+
+refreshStatus();
+setInterval(refreshStatus, 10000);
+</script>
+{% endblock %}

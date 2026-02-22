@@ -1,0 +1,44 @@
+ai:
+  # Provider: openai | anthropic | ollama
+  provider: openai
+  model: gpt-4o-mini
+  timeout_seconds: 120
+  # Required only when provider = ollama
+  ollama_base_url: http://localhost:11434
+
+dnsbl:
+  lists:
+  - zen.spamhaus.org
+  - b.barracudacentral.org
+  - bl.spamcop.net
+
+imap:
+  folder: INBOX
+  host: imap.gmail.com
+  port: 993
+
+paths:
+  db_file: /var/log/mailsentinel/mailsentinel.db
+  log_backup_count: 5
+  log_file: /var/log/mailsentinel/mailsentinel.log
+  log_max_bytes: 10485760
+
+startup_scan_limit: 20
+
+thresholds:
+  flag: 0.55
+  junk: 0.8
+
+timezone: UTC
+
+# ui.password_hash and ui.secret_key are generated automatically on first run.
+# Do not set them manually.
+ui:
+  password_hash: ''
+  secret_key: ''
+
+whitelist:
+  enabled: true
+  rules: []
+
+worker_threads: 4
