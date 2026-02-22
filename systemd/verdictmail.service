@@ -5,12 +5,12 @@ Wants=network-online.target
 
 [Service]
 Type=simple
-User=mailsentinel
-Group=mailsentinel
-WorkingDirectory=/opt/mailsentinel
-EnvironmentFile=/opt/mailsentinel/.env
-Environment=PYTHONPATH=/opt/mailsentinel/src
-ExecStart=/opt/mailsentinel/venv/bin/python -m verdictmail.main
+User=verdictmail
+Group=verdictmail
+WorkingDirectory=/opt/verdictmail
+EnvironmentFile=/opt/verdictmail/.env
+Environment=PYTHONPATH=/opt/verdictmail/src
+ExecStart=/opt/verdictmail/venv/bin/python -m verdictmail.main
 Restart=on-failure
 RestartSec=10
 TimeoutStopSec=150

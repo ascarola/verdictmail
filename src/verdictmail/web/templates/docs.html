@@ -368,7 +368,7 @@
     <h5 class="doc-anchor" id="configuration">Configuration Reference</h5>
     <hr class="mt-1">
     <p class="small text-muted mb-3">
-      Config file: <code>/opt/mailsentinel/config/verdictmail.yaml</code>.
+      Config file: <code>/opt/verdictmail/config/verdictmail.yaml</code>.
       All changes require a daemon restart to take effect.
     </p>
     <div class="table-responsive mb-3">
@@ -392,8 +392,8 @@
           <tr><td>whitelist.enabled</td><td><code>true</code></td><td>Master on/off switch for the whitelist. Does not delete rules.</td></tr>
           <tr><td>whitelist.rules</td><td><code>[]</code></td><td>List of whitelist rule objects. See <a href="#whitelist" class="text-info">Whitelist</a>.</td></tr>
           <tr><td>timezone</td><td><code>UTC</code></td><td>IANA timezone name used for dashboard "today" counts and audit log display.</td></tr>
-          <tr><td>paths.log_file</td><td><code>/var/log/mailsentinel/verdictmail.log</code></td><td>Rotating log file path.</td></tr>
-          <tr><td>paths.db_file</td><td><code>/var/log/mailsentinel/verdictmail.db</code></td><td>SQLite audit database path.</td></tr>
+          <tr><td>paths.log_file</td><td><code>/var/log/verdictmail/verdictmail.log</code></td><td>Rotating log file path.</td></tr>
+          <tr><td>paths.db_file</td><td><code>/var/log/verdictmail/verdictmail.db</code></td><td>SQLite audit database path.</td></tr>
           <tr><td>paths.log_max_bytes</td><td><code>10485760</code></td><td>Maximum log file size before rotation (10 MB).</td></tr>
           <tr><td>paths.log_backup_count</td><td><code>5</code></td><td>Number of rotated log files to retain.</td></tr>
           <tr><td>ui.password_hash</td><td>—</td><td>Scrypt hash of the web UI password. Set via the <a href="{{ url_for('credentials') }}" class="text-info">Credentials</a> page.</td></tr>
@@ -404,7 +404,7 @@
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="credentials">Credentials</h5>
     <hr class="mt-1">
-    <p>Secrets are stored in <code>/opt/mailsentinel/.env</code> and never written to the YAML config.</p>
+    <p>Secrets are stored in <code>/opt/verdictmail/.env</code> and never written to the YAML config.</p>
     <div class="table-responsive mb-3">
       <table class="table table-dark table-sm table-bordered small">
         <thead class="table-secondary">
@@ -428,7 +428,7 @@
     <hr class="mt-1">
     <p>
       Every processed message generates a record in the SQLite database at
-      <code>/var/log/mailsentinel/verdictmail.db</code>, regardless of outcome
+      <code>/var/log/verdictmail/verdictmail.db</code>, regardless of outcome
       (including errors and whitelisted messages). Records are viewable on the
       <a href="{{ url_for('audit') }}" class="text-info">Audit Log</a> page.
     </p>
@@ -573,7 +573,7 @@
             <td>Unprivileged LXC (e.g. Proxmox)</td>
             <td>Signal + pause flag</td>
             <td>Daemon keeps running but ignores incoming messages. A flag file
-                (<code>/var/log/mailsentinel/paused</code>) is written; the daemon skips
+                (<code>/var/log/verdictmail/paused</code>) is written; the daemon skips
                 new UIDs while it exists. Resume removes the flag. Incoming messages
                 stay <strong>UNSEEN</strong> in Gmail and are processed after resuming
                 (picked up by the startup scan on next restart, or as new IDLE events arrive).</td>
@@ -603,21 +603,21 @@ journalctl -u verdictmail-web -f</pre>
     <h6>Inspect the audit database directly</h6>
     <div class="bg-dark border rounded p-3 font-monospace small mb-3" style="font-size:.8rem">
 <pre class="mb-0 text-light"># Most recent 5 decisions
-sqlite3 /var/log/mailsentinel/verdictmail.db \
+sqlite3 /var/log/verdictmail/verdictmail.db \
   "SELECT id, subject, threat_level,
           printf('%.0f%%', confidence*100),
           action_taken, reasoning
    FROM audit_log ORDER BY id DESC LIMIT 5;"
 
 # Count by action
-sqlite3 /var/log/mailsentinel/verdictmail.db \
+sqlite3 /var/log/verdictmail/verdictmail.db \
   "SELECT action_taken, COUNT(*) FROM audit_log GROUP BY action_taken;"</pre>
     </div>
 
     <h6>Log file</h6>
     <p class="small text-muted mb-4">
       Structured log entries are written to
-      <code>/var/log/mailsentinel/verdictmail.log</code>
+      <code>/var/log/verdictmail/verdictmail.log</code>
       with automatic rotation at 10 MB (5 backups retained).
       Each processed message emits a summary line:
       <code>UID &lt;n&gt; done in &lt;ms&gt;ms | threat=&lt;level&gt; confidence=&lt;score&gt; action=&lt;action&gt;</code>

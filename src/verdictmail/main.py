@@ -25,7 +25,7 @@ from dotenv import load_dotenv
 
 logger = logging.getLogger(__name__)
 
-PAUSE_FLAG = Path("/var/log/mailsentinel/paused")
+PAUSE_FLAG = Path("/var/log/verdictmail/paused")
 
 # ---------------------------------------------------------------------------
 # Config loader
@@ -217,7 +217,7 @@ def main() -> None:
     project_root = script_dir.parent.parent  # src/verdictmail → src → project root
     config_path = os.environ.get(
         "VERDICTMAIL_CONFIG",
-        str(project_root / "config" / "mailsentinel.yaml"),
+        str(project_root / "config" / "verdictmail.yaml"),
     )
 
     try:
@@ -252,8 +252,8 @@ def main() -> None:
     from .audit_logger import init_db, setup_logging
 
     paths_cfg = cfg.get("paths", {})
-    log_file = paths_cfg.get("log_file", "/var/log/mailsentinel/verdictmail.log")
-    db_file = paths_cfg.get("db_file", "/var/log/mailsentinel/verdictmail.db")
+    log_file = paths_cfg.get("log_file", "/var/log/verdictmail/verdictmail.log")
+    db_file = paths_cfg.get("db_file", "/var/log/verdictmail/verdictmail.db")
     log_max_bytes = paths_cfg.get("log_max_bytes", 10 * 1024 * 1024)
     log_backup_count = paths_cfg.get("log_backup_count", 5)
 

@@ -46,11 +46,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 # Paths
 # ---------------------------------------------------------------------------
 
-BASE_DIR = Path(__file__).resolve().parents[3]   # /opt/mailsentinel
-CONFIG_PATH = BASE_DIR / "config" / "mailsentinel.yaml"
+BASE_DIR = Path(__file__).resolve().parents[3]   # /opt/verdictmail
+CONFIG_PATH = BASE_DIR / "config" / "verdictmail.yaml"
 ENV_PATH = BASE_DIR / ".env"
-DB_PATH = Path("/var/log/mailsentinel/verdictmail.db")
-PAUSE_FLAG = Path("/var/log/mailsentinel/paused")
+DB_PATH = Path("/var/log/verdictmail/verdictmail.db")
+PAUSE_FLAG = Path("/var/log/verdictmail/paused")
 
 # Ensure src/ is on the path so we can import siblings
 SRC_DIR = BASE_DIR / "src"
@@ -986,7 +986,7 @@ def api_status():
     import collections
 
     # Read last 60 lines from the rotating log file
-    log_path = Path("/var/log/mailsentinel/verdictmail.log")
+    log_path = Path("/var/log/verdictmail/verdictmail.log")
     log_lines: list[str] = []
     if log_path.exists():
         try:
