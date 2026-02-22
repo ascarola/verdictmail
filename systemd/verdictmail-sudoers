@@ -1,5 +1,5 @@
-# Allow the mailsentinel service user to start, stop, and restart the daemon
+# Allow the verdictmail service user to start, stop, and restart the daemon
 # without a password prompt.
-# Install as: sudo cp mailsentinel-sudoers /etc/sudoers.d/mailsentinel
-#             sudo chmod 440 /etc/sudoers.d/mailsentinel
-mailsentinel ALL=(root) NOPASSWD: /usr/bin/systemctl start verdictmail, /usr/bin/systemctl stop verdictmail, /usr/bin/systemctl restart verdictmail
+# Install as: sudo cp mailsentinel-sudoers /etc/sudoers.d/verdictmail
+#             sudo chmod 440 /etc/sudoers.d/verdictmail
+verdictmail ALL=(root) NOPASSWD: /usr/bin/systemctl start verdictmail, /usr/bin/systemctl stop verdictmail, /usr/bin/systemctl restart verdictmail

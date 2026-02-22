@@ -65,61 +65,61 @@ apt-get install -y git python3 python3-venv python3-dev python3-pip \
 ### 2. Create the service user and directories
 
 ```bash
-useradd -r -s /bin/false -M -d /opt/mailsentinel mailsentinel
-mkdir -p /opt/mailsentinel /var/log/mailsentinel
-chown mailsentinel:mailsentinel /opt/mailsentinel /var/log/mailsentinel
+useradd -r -s /bin/false -M -d /opt/verdictmail verdictmail
+mkdir -p /opt/verdictmail /var/log/verdictmail
+chown verdictmail:verdictmail /opt/verdictmail /var/log/verdictmail
 ```
 
 ### 3. Clone the repository
 
 ```bash
-git clone https://github.com/ascarola/verdictmail.git /opt/mailsentinel
-chown -R mailsentinel:mailsentinel /opt/mailsentinel
+git clone https://github.com/ascarola/verdictmail.git /opt/verdictmail
+chown -R verdictmail:verdictmail /opt/verdictmail
 ```
 
 ### 4. Create the virtual environment and install dependencies
 
 ```bash
-python3 -m venv /opt/mailsentinel/venv
-/opt/mailsentinel/venv/bin/pip install --upgrade pip
-/opt/mailsentinel/venv/bin/pip install -r /opt/mailsentinel/requirements.txt
-chown -R mailsentinel:mailsentinel /opt/mailsentinel/venv
+python3 -m venv /opt/verdictmail/venv
+/opt/verdictmail/venv/bin/pip install --upgrade pip
+/opt/verdictmail/venv/bin/pip install -r /opt/verdictmail/requirements.txt
+chown -R verdictmail:verdictmail /opt/verdictmail/venv
 ```
 
 ### 5. Configure credentials
 
 ```bash
-cp /opt/mailsentinel/.env.example /opt/mailsentinel/.env
-chown mailsentinel:mailsentinel /opt/mailsentinel/.env
-chmod 600 /opt/mailsentinel/.env
+cp /opt/verdictmail/.env.example /opt/verdictmail/.env
+chown verdictmail:verdictmail /opt/verdictmail/.env
+chmod 600 /opt/verdictmail/.env
 ```
 
-Edit `/opt/mailsentinel/.env` and fill in your Gmail credentials and AI provider API key.
+Edit `/opt/verdictmail/.env` and fill in your Gmail credentials and AI provider API key.
 
 ### 6. Configure the application
 
 ```bash
-cp /opt/mailsentinel/config/verdictmail.yaml.example /opt/mailsentinel/config/verdictmail.yaml
-chown mailsentinel:mailsentinel /opt/mailsentinel/config/verdictmail.yaml
+cp /opt/verdictmail/config/verdictmail.yaml.example /opt/verdictmail/config/verdictmail.yaml
+chown verdictmail:verdictmail /opt/verdictmail/config/verdictmail.yaml
 ```
 
-Edit `/opt/mailsentinel/config/verdictmail.yaml` and set at minimum:
+Edit `/opt/verdictmail/config/verdictmail.yaml` and set at minimum:
 - `ai.provider` and `ai.model`
 - `timezone` (IANA name, e.g. `America/New_York`)
 
 ### 7. Install systemd units
 
 ```bash
-cp /opt/mailsentinel/systemd/verdictmail.service /etc/systemd/system/
-cp /opt/mailsentinel/systemd/verdictmail-web.service /etc/systemd/system/
+cp /opt/verdictmail/systemd/verdictmail.service /etc/systemd/system/
+cp /opt/verdictmail/systemd/verdictmail-web.service /etc/systemd/system/
 systemctl daemon-reload
 ```
 
 ### 8. Install the sudoers rule (allows the web UI to restart the daemon)
 
 ```bash
-cp /opt/mailsentinel/systemd/verdictmail-sudoers /etc/sudoers.d/mailsentinel
-chmod 440 /etc/sudoers.d/mailsentinel
+cp /opt/verdictmail/systemd/verdictmail-sudoers /etc/sudoers.d/verdictmail
+chmod 440 /etc/sudoers.d/verdictmail
 ```
 
 ### 9. Enable and start
@@ -133,7 +133,7 @@ systemctl status verdictmail verdictmail-web
 
 ## Configuration
 
-All non-secret settings are in `/opt/mailsentinel/config/verdictmail.yaml`.
+All non-secret settings are in `/opt/verdictmail/config/verdictmail.yaml`.
 See `config/verdictmail.yaml.example` for a fully-annotated template.
 Changes require a daemon restart: `systemctl restart verdictmail`.
 
@@ -233,22 +233,22 @@ c.logout()
 
 ```bash
 # Install dev dependencies (includes pytest)
-/opt/mailsentinel/venv/bin/pip install -r /opt/mailsentinel/requirements-dev.txt
+/opt/verdictmail/venv/bin/pip install -r /opt/verdictmail/requirements-dev.txt
 
-PYTHONPATH=src /opt/mailsentinel/venv/bin/python -m pytest tests/ -v
+PYTHONPATH=src /opt/verdictmail/venv/bin/python -m pytest tests/ -v
 ```
 
 ### Watch live logs
 
 ```bash
 journalctl -u verdictmail -f
-tail -f /var/log/mailsentinel/verdictmail.log
+tail -f /var/log/verdictmail/verdictmail.log
 ```
 
 ### Inspect the audit database
 
 ```bash
-sqlite3 /var/log/mailsentinel/verdictmail.db \
+sqlite3 /var/log/verdictmail/verdictmail.db \
   "SELECT id, subject, threat_level, printf('%.0f%%', confidence*100),
           action_taken, reasoning
    FROM audit_log ORDER BY id DESC LIMIT 10;"
