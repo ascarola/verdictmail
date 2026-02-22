@@ -1,7 +1,6 @@
 # Credentials and live config — never commit these
 .env
 config/verdictmail.yaml
-config/mailsentinel.yaml
 
 # Python
 __pycache__/
@@ -26,10 +25,6 @@ htmlcov/
 *.db
 *.log
 *.log.*
-
-# Superseded systemd unit files (kept locally, not for distribution)
-systemd/mailsentinel.service
-systemd/mailsentinel-web.service
 
 # Editor
 .vscode/
