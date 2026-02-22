@@ -1,5 +1,9 @@
 # VerdictMail
 
+![Version](https://img.shields.io/badge/version-0.1.0--beta-blue)
+![License](https://img.shields.io/badge/license-MIT-green)
+![Python](https://img.shields.io/badge/python-3.11%2B-blue)
+
 AI-powered email threat analysis daemon for Gmail. Monitors your inbox via IMAP IDLE and runs every incoming message through a multi-stage enrichment and AI analysis pipeline — automatically passing, flagging, or moving suspicious mail to Junk.
 
 ---
