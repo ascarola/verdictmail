@@ -37,19 +37,28 @@ IMAP IDLE (main thread)
 
 ## Requirements
 
-- Ubuntu 22.04 LTS or 24.04 LTS (or any systemd-based Linux)
+- Ubuntu 22.04 LTS or 24.04 LTS (or any systemd-based Linux), running as root for installation
 - Python 3.11+
-- A Gmail account with IMAP enabled and a [Gmail App Password](https://support.google.com/accounts/answer/185833) generated
+- A Gmail account with IMAP enabled (Gmail Settings → See all settings → Forwarding and POP/IMAP → Enable IMAP) and a [Gmail App Password](https://support.google.com/accounts/answer/185833) generated
+- Port 80 free on the host (used by the web UI)
 - One of:
   - An OpenAI API key
   - An Anthropic API key
-  - A running [Ollama](https://ollama.com) instance with a model pulled (e.g. `ollama pull qwen2.5-coder:14b`)
+  - A running [Ollama](https://ollama.com) instance (local or remote) with a model pulled (e.g. `ollama pull qwen2.5-coder:14b`)
 
 ---
 
 ## Installation
 
-### 1. Create the service user and directories
+### 1. Install system dependencies
+
+```bash
+apt-get update
+apt-get install -y git python3 python3-venv python3-dev python3-pip \
+                   build-essential libssl-dev sqlite3
+```
+
+### 2. Create the service user and directories
 
 ```bash
 useradd -r -s /bin/false -M -d /opt/mailsentinel mailsentinel
@@ -57,22 +66,23 @@ mkdir -p /opt/mailsentinel /var/log/mailsentinel
 chown mailsentinel:mailsentinel /opt/mailsentinel /var/log/mailsentinel
 ```
 
-### 2. Clone the repository
+### 3. Clone the repository
 
 ```bash
 git clone https://github.com/ascarola/verdictmail.git /opt/mailsentinel
 chown -R mailsentinel:mailsentinel /opt/mailsentinel
 ```
 
-### 3. Create the virtual environment
+### 4. Create the virtual environment and install dependencies
 
 ```bash
 python3 -m venv /opt/mailsentinel/venv
 /opt/mailsentinel/venv/bin/pip install --upgrade pip
 /opt/mailsentinel/venv/bin/pip install -r /opt/mailsentinel/requirements.txt
+chown -R mailsentinel:mailsentinel /opt/mailsentinel/venv
 ```
 
-### 4. Configure credentials
+### 5. Configure credentials
 
 ```bash
 cp /opt/mailsentinel/.env.example /opt/mailsentinel/.env
@@ -82,7 +92,7 @@ chmod 600 /opt/mailsentinel/.env
 
 Edit `/opt/mailsentinel/.env` and fill in your Gmail credentials and AI provider API key.
 
-### 5. Configure the application
+### 6. Configure the application
 
 ```bash
 cp /opt/mailsentinel/config/mailsentinel.yaml.example /opt/mailsentinel/config/mailsentinel.yaml
@@ -93,7 +103,7 @@ Edit `/opt/mailsentinel/config/mailsentinel.yaml` and set at minimum:
 - `ai.provider` and `ai.model`
 - `timezone` (IANA name, e.g. `America/New_York`)
 
-### 6. Install systemd units
+### 7. Install systemd units
 
 ```bash
 cp /opt/mailsentinel/systemd/verdictmail.service /etc/systemd/system/
@@ -101,14 +111,14 @@ cp /opt/mailsentinel/systemd/verdictmail-web.service /etc/systemd/system/
 systemctl daemon-reload
 ```
 
-### 7. Install the sudoers rule (allows the web UI to restart the daemon)
+### 8. Install the sudoers rule (allows the web UI to restart the daemon)
 
 ```bash
 cp /opt/mailsentinel/systemd/mailsentinel-sudoers /etc/sudoers.d/mailsentinel
 chmod 440 /etc/sudoers.d/mailsentinel
 ```
 
-### 8. Enable and start
+### 9. Enable and start
 
 ```bash
 systemctl enable --now verdictmail verdictmail-web
