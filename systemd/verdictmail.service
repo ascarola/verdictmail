@@ -11,7 +11,7 @@ WorkingDirectory=/opt/verdictmail
 EnvironmentFile=/opt/verdictmail/.env
 Environment=PYTHONPATH=/opt/verdictmail/src
 ExecStart=/opt/verdictmail/venv/bin/python -m verdictmail.main
-Restart=on-failure
+Restart=always
 RestartSec=10
 TimeoutStopSec=150
 StandardOutput=journal
