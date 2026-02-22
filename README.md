@@ -228,7 +228,9 @@ c.logout()
 ### Run the unit tests
 
 ```bash
-cd /opt/mailsentinel
+# Install dev dependencies (includes pytest)
+/opt/mailsentinel/venv/bin/pip install -r /opt/mailsentinel/requirements-dev.txt
+
 PYTHONPATH=src /opt/mailsentinel/venv/bin/python -m pytest tests/ -v
 ```
 
