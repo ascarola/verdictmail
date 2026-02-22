@@ -1,6 +1,6 @@
 # Credentials and live config — never commit these
 .env
-config/mailsentinel.yaml
+config/verdictmail.yaml
 
 # Python
 __pycache__/

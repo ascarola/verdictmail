@@ -49,7 +49,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 BASE_DIR = Path(__file__).resolve().parents[3]   # /opt/mailsentinel
 CONFIG_PATH = BASE_DIR / "config" / "mailsentinel.yaml"
 ENV_PATH = BASE_DIR / ".env"
-DB_PATH = Path("/var/log/mailsentinel/mailsentinel.db")
+DB_PATH = Path("/var/log/mailsentinel/verdictmail.db")
 PAUSE_FLAG = Path("/var/log/mailsentinel/paused")
 
 # Ensure src/ is on the path so we can import siblings
@@ -678,10 +678,10 @@ def test():
     error_msg: str | None = None
 
     try:
-        from mailsentinel.message_parser import parse_raw_message
-        from mailsentinel.enrichment import EnrichmentPipeline
-        from mailsentinel.ai_analyzer import AiAnalyzer
-        from mailsentinel.decision_engine import DecisionEngine
+        from verdictmail.message_parser import parse_raw_message
+        from verdictmail.enrichment import EnrichmentPipeline
+        from verdictmail.ai_analyzer import AiAnalyzer
+        from verdictmail.decision_engine import DecisionEngine
         from dotenv import dotenv_values as _dv
 
         parsed = parse_raw_message(raw_bytes)
@@ -986,7 +986,7 @@ def api_status():
     import collections
 
     # Read last 60 lines from the rotating log file
-    log_path = Path("/var/log/mailsentinel/mailsentinel.log")
+    log_path = Path("/var/log/mailsentinel/verdictmail.log")
     log_lines: list[str] = []
     if log_path.exists():
         try:

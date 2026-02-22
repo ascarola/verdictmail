@@ -18,9 +18,9 @@ imap:
   port: 993
 
 paths:
-  db_file: /var/log/mailsentinel/mailsentinel.db
+  db_file: /var/log/mailsentinel/verdictmail.db
   log_backup_count: 5
-  log_file: /var/log/mailsentinel/mailsentinel.log
+  log_file: /var/log/mailsentinel/verdictmail.log
   log_max_bytes: 10485760
 
 startup_scan_limit: 20

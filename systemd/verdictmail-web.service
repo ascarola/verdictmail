@@ -9,12 +9,12 @@ User=mailsentinel
 Group=mailsentinel
 WorkingDirectory=/opt/mailsentinel
 Environment=PYTHONPATH=/opt/mailsentinel/src
-ExecStart=/opt/mailsentinel/venv/bin/python -m mailsentinel.web.app
+ExecStart=/opt/mailsentinel/venv/bin/python -m verdictmail.web.app
 Restart=on-failure
 RestartSec=10
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=mailsentinel-web
+SyslogIdentifier=verdictmail-web
 
 # Allow binding port 80 as non-root
 AmbientCapabilities=CAP_NET_BIND_SERVICE

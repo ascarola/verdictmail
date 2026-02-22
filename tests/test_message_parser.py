@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 import textwrap
 import unittest
 
-from mailsentinel.message_parser import parse_raw_message
+from verdictmail.message_parser import parse_raw_message
 
 
 # ---------------------------------------------------------------------------

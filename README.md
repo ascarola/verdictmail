@@ -99,11 +99,11 @@ Edit `/opt/mailsentinel/.env` and fill in your Gmail credentials and AI provider
 ### 6. Configure the application
 
 ```bash
-cp /opt/mailsentinel/config/mailsentinel.yaml.example /opt/mailsentinel/config/mailsentinel.yaml
-chown mailsentinel:mailsentinel /opt/mailsentinel/config/mailsentinel.yaml
+cp /opt/mailsentinel/config/verdictmail.yaml.example /opt/mailsentinel/config/verdictmail.yaml
+chown mailsentinel:mailsentinel /opt/mailsentinel/config/verdictmail.yaml
 ```
 
-Edit `/opt/mailsentinel/config/mailsentinel.yaml` and set at minimum:
+Edit `/opt/mailsentinel/config/verdictmail.yaml` and set at minimum:
 - `ai.provider` and `ai.model`
 - `timezone` (IANA name, e.g. `America/New_York`)
 
@@ -118,7 +118,7 @@ systemctl daemon-reload
 ### 8. Install the sudoers rule (allows the web UI to restart the daemon)
 
 ```bash
-cp /opt/mailsentinel/systemd/mailsentinel-sudoers /etc/sudoers.d/mailsentinel
+cp /opt/mailsentinel/systemd/verdictmail-sudoers /etc/sudoers.d/mailsentinel
 chmod 440 /etc/sudoers.d/mailsentinel
 ```
 
@@ -133,8 +133,8 @@ systemctl status verdictmail verdictmail-web
 
 ## Configuration
 
-All non-secret settings are in `/opt/mailsentinel/config/mailsentinel.yaml`.
-See `config/mailsentinel.yaml.example` for a fully-annotated template.
+All non-secret settings are in `/opt/mailsentinel/config/verdictmail.yaml`.
+See `config/verdictmail.yaml.example` for a fully-annotated template.
 Changes require a daemon restart: `systemctl restart verdictmail`.
 
 | Key | Default | Description |
@@ -176,7 +176,7 @@ Each rule matches on one or more of:
 - `sender_domain` — all addresses at a domain
 - `subject_contains` — case-insensitive substring of Subject
 
-Multiple fields in one rule require **all** to match (AND logic). Manage rules via the web UI or by editing `mailsentinel.yaml` directly (restart required).
+Multiple fields in one rule require **all** to match (AND logic). Manage rules via the web UI or by editing `verdictmail.yaml` directly (restart required).
 
 ---
 
@@ -195,7 +195,7 @@ The Flask admin interface runs on port 80 alongside the daemon.
 | Documentation | `/docs` | In-app reference manual |
 | About | `/about` | Version and tech stack info |
 
-A web UI password is set on first visit. The password hash is stored in `mailsentinel.yaml`; the plaintext password is never stored.
+A web UI password is set on first visit. The password hash is stored in `verdictmail.yaml`; the plaintext password is never stored.
 
 ---
 
@@ -242,13 +242,13 @@ PYTHONPATH=src /opt/mailsentinel/venv/bin/python -m pytest tests/ -v
 
 ```bash
 journalctl -u verdictmail -f
-tail -f /var/log/mailsentinel/mailsentinel.log
+tail -f /var/log/mailsentinel/verdictmail.log
 ```
 
 ### Inspect the audit database
 
 ```bash
-sqlite3 /var/log/mailsentinel/mailsentinel.db \
+sqlite3 /var/log/mailsentinel/verdictmail.db \
   "SELECT id, subject, threat_level, printf('%.0f%%', confidence*100),
           action_taken, reasoning
    FROM audit_log ORDER BY id DESC LIMIT 10;"

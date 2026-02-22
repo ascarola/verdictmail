@@ -214,9 +214,9 @@ def main() -> None:
     # -----------------------------------------------------------------------
     script_dir = Path(__file__).resolve().parent
     # Walk up to find config/ directory relative to project root
-    project_root = script_dir.parent.parent  # src/mailsentinel → src → project root
+    project_root = script_dir.parent.parent  # src/verdictmail → src → project root
     config_path = os.environ.get(
-        "MAILSENTINEL_CONFIG",
+        "VERDICTMAIL_CONFIG",
         str(project_root / "config" / "mailsentinel.yaml"),
     )
 
@@ -229,7 +229,7 @@ def main() -> None:
     # -----------------------------------------------------------------------
     # 2. Load credentials from .env
     # -----------------------------------------------------------------------
-    env_path = os.environ.get("MAILSENTINEL_ENV", str(project_root / ".env"))
+    env_path = os.environ.get("VERDICTMAIL_ENV", str(project_root / ".env"))
     if Path(env_path).exists():
         load_dotenv(env_path)
     else:
@@ -252,8 +252,8 @@ def main() -> None:
     from .audit_logger import init_db, setup_logging
 
     paths_cfg = cfg.get("paths", {})
-    log_file = paths_cfg.get("log_file", "/var/log/mailsentinel/mailsentinel.log")
-    db_file = paths_cfg.get("db_file", "/var/log/mailsentinel/mailsentinel.db")
+    log_file = paths_cfg.get("log_file", "/var/log/mailsentinel/verdictmail.log")
+    db_file = paths_cfg.get("db_file", "/var/log/mailsentinel/verdictmail.db")
     log_max_bytes = paths_cfg.get("log_max_bytes", 10 * 1024 * 1024)
     log_backup_count = paths_cfg.get("log_backup_count", 5)
 
