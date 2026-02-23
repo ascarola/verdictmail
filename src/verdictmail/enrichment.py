@@ -19,7 +19,7 @@ import whois
 
 logger = logging.getLogger(__name__)
 
-# Common URL shortener domains (duplicated here to avoid circular import)
+# Common URL shortener domains
 _SHORTENER_DOMAINS: frozenset[str] = frozenset({
     "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd",
     "buff.ly", "adf.ly", "shorte.st", "bc.vc", "clk.sh", "cutt.ly",

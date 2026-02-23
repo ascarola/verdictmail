@@ -23,13 +23,6 @@ _URL_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Common URL shortener domains
-_SHORTENER_DOMAINS: frozenset[str] = frozenset({
-    "bit.ly", "tinyurl.com", "t.co", "goo.gl", "ow.ly", "is.gd",
-    "buff.ly", "adf.ly", "shorte.st", "bc.vc", "clk.sh", "cutt.ly",
-    "rb.gy", "shorturl.at", "tiny.cc", "lnkd.in",
-})
-
 
 @dataclass
 class ParsedMessage:
