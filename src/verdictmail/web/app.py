@@ -33,6 +33,7 @@ import tempfile
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
+from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import yaml
@@ -974,7 +975,11 @@ def api_ollama_models():
     URL is currently typed in the form (before saving).
     """
     base_url = request.args.get("url", "").strip().rstrip("/")
-    if not base_url:
+    if base_url:
+        _p = urlparse(base_url)
+        if _p.scheme not in ("http", "https") or not _p.netloc:
+            return jsonify(ok=False, models=[], msg="Invalid URL: must be http:// or https://")
+    else:
         cfg = _load_config()
         ai_cfg = cfg.get("ai", cfg.get("ollama", {}))
         base_url = ai_cfg.get("ollama_base_url", "http://localhost:11434").rstrip("/")
