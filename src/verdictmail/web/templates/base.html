@@ -9,16 +9,30 @@
   {% block extra_head %}{% endblock %}
   <style>
     body { padding-top: 56px; }
-    #sidebar {
-      position: fixed; top: 56px; left: 0; bottom: 0;
-      width: 220px; overflow-y: auto;
-      background: #1a1d23; border-right: 1px solid #2e3238;
-      z-index: 100;
-    }
+    /* Sidebar nav links */
     #sidebar .nav-link { color: #adb5bd; padding: .5rem 1.25rem; font-size: .9rem; }
     #sidebar .nav-link:hover, #sidebar .nav-link.active { color: #fff; background: #2e3238; border-radius: .25rem; }
     #sidebar .nav-link i { width: 1.25rem; }
-    #main { margin-left: 220px; padding: 1.5rem; }
+    /* Sidebar starts below the fixed navbar on both mobile and desktop */
+    #sidebar { top: 56px !important; }
+    /* Desktop (lg+): override Bootstrap offcanvas hiding so sidebar is always visible */
+    @media (min-width: 992px) {
+      #sidebar {
+        visibility: visible !important;
+        transform: none !important;
+        position: fixed !important;
+        bottom: 0;
+        width: 220px !important;
+        overflow-y: auto;
+        z-index: 100;
+      }
+      #main { margin-left: 220px; }
+    }
+    /* Mobile: no left margin (sidebar is an overlay) */
+    @media (max-width: 991.98px) {
+      #main { margin-left: 0; }
+    }
+    #main { padding: 1.5rem; }
     .navbar-brand { font-weight: 700; letter-spacing: .03em; }
     .threat-none      { color: #adb5bd; }
     .threat-low       { color: #0dcaf0; }
@@ -36,44 +50,59 @@
 
 <!-- Top navbar -->
 <nav class="navbar navbar-dark bg-dark fixed-top px-3" style="height:56px">
+  <!-- Hamburger: mobile only -->
+  <button class="btn btn-dark d-lg-none border-0 me-2 px-2" type="button"
+          data-bs-toggle="offcanvas" data-bs-target="#sidebar" aria-controls="sidebar"
+          aria-label="Toggle navigation">
+    <i class="bi bi-list fs-5"></i>
+  </button>
   <a class="navbar-brand" href="/">
     <i class="bi bi-shield-shaded me-2 text-primary"></i>VerdictMail
   </a>
-  <span class="navbar-text text-muted small me-auto">AI Email Threat Analysis</span>
-  <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-secondary ms-3">
+  <span class="navbar-text text-muted small d-none d-md-inline">AI Email Threat Analysis</span>
+  <a href="{{ url_for('logout') }}" class="btn btn-sm btn-outline-secondary ms-auto">
     <i class="bi bi-box-arrow-right me-1"></i>Logout
   </a>
 </nav>
 
-<!-- Sidebar -->
-<div id="sidebar">
-  <nav class="nav flex-column pt-3">
-    <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
-      <i class="bi bi-speedometer2"></i> Dashboard
-    </a>
-    <a class="nav-link {% if request.endpoint == 'audit' %}active{% endif %}" href="{{ url_for('audit') }}">
-      <i class="bi bi-journal-text"></i> Audit Log
-    </a>
-    <a class="nav-link {% if request.endpoint == 'config_editor' %}active{% endif %}" href="{{ url_for('config_editor') }}">
-      <i class="bi bi-gear"></i> Configuration
-    </a>
-    <a class="nav-link {% if request.endpoint == 'whitelist_view' %}active{% endif %}" href="{{ url_for('whitelist_view') }}">
-      <i class="bi bi-shield-check"></i> Whitelist
-    </a>
-    <a class="nav-link {% if request.endpoint == 'credentials' %}active{% endif %}" href="{{ url_for('credentials') }}">
-      <i class="bi bi-key"></i> Credentials
-    </a>
-    <a class="nav-link {% if request.endpoint == 'test' %}active{% endif %}" href="{{ url_for('test') }}">
-      <i class="bi bi-play-circle"></i> Manual Test
-    </a>
-    <hr style="border-color:#2e3238;margin:.5rem 1rem">
-    <a class="nav-link {% if request.endpoint == 'docs' %}active{% endif %}" href="{{ url_for('docs') }}">
-      <i class="bi bi-book"></i> Documentation
-    </a>
-    <a class="nav-link {% if request.endpoint == 'about' %}active{% endif %}" href="{{ url_for('about') }}">
-      <i class="bi bi-info-circle"></i> About
-    </a>
-  </nav>
+<!-- Sidebar: Bootstrap offcanvas drawer on mobile, always-visible fixed sidebar on desktop -->
+<div class="offcanvas offcanvas-start" id="sidebar" tabindex="-1"
+     style="background:#1a1d23; border-right:1px solid #2e3238; width:220px">
+  <!-- Close button header: mobile only -->
+  <div class="offcanvas-header d-lg-none pb-2" style="border-bottom:1px solid #2e3238">
+    <span class="fw-bold small"><i class="bi bi-shield-shaded me-2 text-primary"></i>VerdictMail</span>
+    <button type="button" class="btn-close btn-close-white"
+            data-bs-dismiss="offcanvas" data-bs-target="#sidebar"></button>
+  </div>
+  <div class="offcanvas-body p-0">
+    <nav class="nav flex-column pt-3">
+      <a class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}" href="{{ url_for('dashboard') }}">
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
+      <a class="nav-link {% if request.endpoint == 'audit' %}active{% endif %}" href="{{ url_for('audit') }}">
+        <i class="bi bi-journal-text"></i> Audit Log
+      </a>
+      <a class="nav-link {% if request.endpoint == 'config_editor' %}active{% endif %}" href="{{ url_for('config_editor') }}">
+        <i class="bi bi-gear"></i> Configuration
+      </a>
+      <a class="nav-link {% if request.endpoint == 'whitelist_view' %}active{% endif %}" href="{{ url_for('whitelist_view') }}">
+        <i class="bi bi-shield-check"></i> Whitelist
+      </a>
+      <a class="nav-link {% if request.endpoint == 'credentials' %}active{% endif %}" href="{{ url_for('credentials') }}">
+        <i class="bi bi-key"></i> Credentials
+      </a>
+      <a class="nav-link {% if request.endpoint == 'test' %}active{% endif %}" href="{{ url_for('test') }}">
+        <i class="bi bi-play-circle"></i> Manual Test
+      </a>
+      <hr style="border-color:#2e3238;margin:.5rem 1rem">
+      <a class="nav-link {% if request.endpoint == 'docs' %}active{% endif %}" href="{{ url_for('docs') }}">
+        <i class="bi bi-book"></i> Documentation
+      </a>
+      <a class="nav-link {% if request.endpoint == 'about' %}active{% endif %}" href="{{ url_for('about') }}">
+        <i class="bi bi-info-circle"></i> About
+      </a>
+    </nav>
+  </div>
 </div>
 
 <!-- Main content -->
