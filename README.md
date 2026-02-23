@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="assets/logo.png" alt="VerdictMail" width="200"/>
+</p>
+
 # VerdictMail
 
 ![Version](https://img.shields.io/badge/version-0.1.0--beta-blue)
