@@ -133,14 +133,14 @@ systemctl enable --now verdictmail verdictmail-web
 systemctl status verdictmail verdictmail-web
 ```
 
-### 10. Complete setup via the web UI
+### 10. Verify installation via the web UI
 
 Open a browser and navigate to:
 ```
 http://<your-server-IP>
 ```
 
-On first visit, VerdictMail will prompt you to set a web UI password. This password protects all admin pages. The bcrypt hash is stored in `verdictmail.yaml` — the plaintext is never saved.
+On first visit, VerdictMail will prompt you to set a web UI password. This password protects all admin pages. The scrypt hash is stored in `verdictmail.yaml` — the plaintext is never saved.
 
 Once logged in, verify the daemon is running on the **Dashboard** and use the **Manual Test** page to confirm the full pipeline is working before relying on it for live mail.
 
