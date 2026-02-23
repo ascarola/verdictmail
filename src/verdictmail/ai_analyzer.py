@@ -145,6 +145,16 @@ def _build_user_prompt(parsed_message, enrichment_result) -> str:
         lines.append("  (none)")
     lines.append("")
 
+    # URLhaus
+    if enrichment_result.urlhaus_hits:
+        lines.append("--- URLhaus Threat Intelligence ---")
+        lines.append("  ALERT: One or more URLs in this message match the URLhaus malware URL database.")
+        lines.append("  URLhaus is a community-maintained feed of known malware distribution and C2 URLs.")
+        lines.append("  A match is a strong indicator of malicious content.")
+        for hit in enrichment_result.urlhaus_hits:
+            lines.append(f"  Listed: {hit}")
+        lines.append("")
+
     # Body (truncated)
     body = parsed_message.body_text.strip()
     if not body and parsed_message.body_html:

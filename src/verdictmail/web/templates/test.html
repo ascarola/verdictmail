@@ -172,6 +172,14 @@
         </ul>
       </dd>
       {% endif %}
+      {% if e.urlhaus_hits %}
+      <dt class="col-sm-3 text-danger">URLhaus hits</dt>
+      <dd class="col-sm-9">
+        <ul class="mb-0 ps-3">
+          {% for hit in e.urlhaus_hits %}<li class="text-danger"><code>{{ hit }}</code></li>{% endfor %}
+        </ul>
+      </dd>
+      {% endif %}
       {% if e.error_notes %}
       <dt class="col-sm-3">Notes</dt>
       <dd class="col-sm-9 text-muted">{{ e.error_notes | join('; ') }}</dd>

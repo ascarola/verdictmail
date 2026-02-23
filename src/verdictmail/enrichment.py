@@ -30,6 +30,8 @@ _DOMAIN_IN_NAME_RE = re.compile(
     r"\b([a-zA-Z0-9\-]+\.[a-zA-Z]{2,})\b"
 )
 
+_URLHAUS_API = "https://urlhaus-api.abuse.ch/v1/url/"
+
 
 @dataclass
 class ExpandedUrl:
@@ -50,6 +52,7 @@ class EnrichmentResult:
     dnsbl_pbl_only: bool = False   # True if every hit is PBL (ISP policy) with no SBL/XBL
     dnsbl_hits: list[str] = field(default_factory=list)
     expanded_urls: list[ExpandedUrl] = field(default_factory=list)
+    urlhaus_hits: list[str] = field(default_factory=list)
     error_notes: list[str] = field(default_factory=list)
 
 
@@ -93,6 +96,9 @@ class EnrichmentPipeline:
         # URL expansion (first 10 only)
         urls_to_expand = parsed_message.urls[:10]
         self._expand_urls(urls_to_expand, result)
+
+        # URLhaus threat intelligence (uses final URLs from expansion)
+        self._check_urlhaus(result)
 
         return result
 
@@ -287,3 +293,42 @@ class EnrichmentPipeline:
             result.expanded_urls.append(
                 ExpandedUrl(original=url, final=final_url, is_shortener=is_shortener)
             )
+
+    # ------------------------------------------------------------------
+    # URLhaus threat intelligence
+    # ------------------------------------------------------------------
+
+    def _check_urlhaus(self, result: EnrichmentResult) -> None:
+        """Look up each URL (using its final destination) against the URLhaus
+        malware URL database. Passive — no connection to the URL itself.
+        Requires URLHAUS_API_KEY in the environment; skips silently if absent."""
+        import os
+        api_key = os.environ.get("URLHAUS_API_KEY", "").strip()
+        if not api_key:
+            logger.debug("URLhaus lookup skipped: URLHAUS_API_KEY not configured")
+            return
+
+        urls_to_check = [
+            eu.final for eu in result.expanded_urls
+            if urlparse(eu.final).scheme in ("http", "https")
+        ]
+        for url in urls_to_check:
+            try:
+                resp = requests.post(
+                    _URLHAUS_API,
+                    data={"url": url, "token": api_key},
+                    timeout=5,
+                    headers={"User-Agent": "VerdictMail/1.0"},
+                )
+                data = resp.json()
+                if data.get("query_status") == "is_listed":
+                    threat = data.get("threat", "unknown")
+                    url_status = data.get("url_status", "unknown")
+                    result.urlhaus_hits.append(
+                        f"{url} (threat={threat}, status={url_status})"
+                    )
+                    logger.info(
+                        "URLhaus hit: %s threat=%s status=%s", url, threat, url_status
+                    )
+            except Exception as exc:
+                logger.debug("URLhaus lookup failed for %s: %s", url, exc)
