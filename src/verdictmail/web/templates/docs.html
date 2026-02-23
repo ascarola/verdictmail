@@ -365,6 +365,7 @@
     </div>
     <p class="small text-muted">
       Whitelist rules are managed on the <a href="{{ url_for('whitelist_view') }}" class="text-info">Whitelist</a> page.
+      Rules are also respected by the <a href="{{ url_for('test') }}" class="text-info">Manual Test</a> — a whitelist match short-circuits the pipeline there too.
     </p>
 
     <!-- ================================================================ -->
@@ -604,6 +605,39 @@ journalctl -u verdictmail -f
 journalctl -u verdictmail-web -f</pre>
     </div>
 
+    <h6 id="manual-test">Manual Test</h6>
+    <p class="small text-muted">
+      The <a href="{{ url_for('test') }}" class="text-info">Manual Test</a> page runs the
+      full pipeline as a dry run — no IMAP action is applied and nothing is written to the
+      audit log. Two input modes are available:
+    </p>
+    <div class="table-responsive mb-3">
+      <table class="table table-dark table-sm table-bordered small">
+        <thead class="table-secondary">
+          <tr><th>Tab</th><th>Use when</th><th>Limitations</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Simple Form</td>
+            <td>Quickly test a sender address, subject, and body.</td>
+            <td>Synthetic email — no SPF, DKIM, or DMARC headers. Provide an optional
+                public IPv4 to exercise DNSBL reputation checks. The AI will note absent
+                authentication as a signal; use Raw RFC822 for accurate auth testing.</td>
+          </tr>
+          <tr>
+            <td>Raw RFC822</td>
+            <td>Paste a complete email copied from a mail client or <code>mbox</code> file.</td>
+            <td>Must be valid RFC 822 format including headers.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small text-muted">
+      The whitelist is respected: if the sender matches a whitelist rule, enrichment and
+      AI are skipped and the result shows <strong>PASS (whitelisted)</strong> — identical
+      to live daemon behaviour.
+    </p>
+
     <h6>Inspect the audit database directly</h6>
     <div class="bg-dark border rounded p-3 font-monospace small mb-3" style="font-size:.8rem">
 <pre class="mb-0 text-light"># Most recent 5 decisions
@@ -645,6 +679,7 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
         <a class="nav-link" href="#audit">Audit Log</a>
         <a class="nav-link" href="#gmail-notes">Gmail &amp; IMAP Notes</a>
         <a class="nav-link" href="#operations">Operations</a>
+        <a class="nav-link nav-sub" href="#manual-test">Manual Test</a>
       </nav>
     </div>
   </div>

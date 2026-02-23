@@ -675,12 +675,23 @@ def test():
         from_addr = request.form.get("from_addr", "test@example.com").strip()
         subject = request.form.get("subject", "(no subject)").strip()
         body = request.form.get("body", "").strip()
+        originating_ip = request.form.get("originating_ip", "").strip()
         msg = email.mime.text.MIMEText(body, "plain", "utf-8")
         msg["From"] = from_addr
         msg["To"] = "sentinel@example.com"
         msg["Subject"] = subject
         msg["Message-ID"] = "<test@verdictmail>"
         msg["Date"] = "Mon, 01 Jan 2024 00:00:00 +0000"
+        if originating_ip:
+            import ipaddress as _ipaddress
+            try:
+                _ipaddress.IPv4Address(originating_ip)
+                msg["Received"] = (
+                    f"from mail.example.com ([{originating_ip}])"
+                    f" by verdictmail-test.local with SMTP"
+                )
+            except ValueError:
+                pass  # invalid IP — silently omit
         raw_bytes = msg.as_bytes()
 
     cfg = _load_config()
@@ -701,32 +712,60 @@ def test():
         parsed = parse_raw_message(raw_bytes)
         results["parsed"] = parsed
 
-        enriched = EnrichmentPipeline(dnsbl_lists).run(raw_bytes, parsed)
-        results["enriched"] = enriched
+        # Whitelist check — mirrors the daemon's _match_whitelist logic
+        whitelist_cfg = cfg.get("whitelist", {})
+        whitelist_enabled = whitelist_cfg.get("enabled", True)
+        whitelist_rules = whitelist_cfg.get("rules", []) if whitelist_enabled else []
+        whitelist_match = None
+        if whitelist_rules:
+            _sender  = getattr(parsed, "sender_address", "") or ""
+            _domain  = getattr(parsed, "sender_domain",  "") or ""
+            _subject = (getattr(parsed, "subject", "") or "").lower()
+            for _rule in whitelist_rules:
+                _rs = (_rule.get("sender")           or "").lower()
+                _rd = (_rule.get("sender_domain")    or "").lower()
+                _rq = (_rule.get("subject_contains") or "").lower()
+                if not (_rs or _rd or _rq):
+                    continue
+                if _rs and _rs != _sender:
+                    continue
+                if _rd and _rd != _domain:
+                    continue
+                if _rq and _rq not in _subject:
+                    continue
+                whitelist_match = _rule
+                break
 
-        ai_provider = ai_cfg.get("provider", "ollama")
-        env_vals = _dv(str(ENV_PATH)) if ENV_PATH.exists() else {}
-        if ai_provider == "anthropic":
-            api_key = env_vals.get("ANTHROPIC_API_KEY", "")
-        elif ai_provider == "openai":
-            api_key = env_vals.get("OPENAI_API_KEY", "")
+        if whitelist_match:
+            results["whitelist_match"] = whitelist_match
         else:
-            api_key = env_vals.get("OLLAMA_API_KEY", "")
+            enriched = EnrichmentPipeline(dnsbl_lists).run(raw_bytes, parsed)
+            results["enriched"] = enriched
 
-        ai = AiAnalyzer(
-            provider=ai_provider,
-            model=ai_cfg.get("model", "qwen2.5-coder:14b"),
-            timeout_seconds=int(ai_cfg.get("timeout_seconds", 120)),
-            base_url=ai_cfg.get("ollama_base_url", ai_cfg.get("base_url", "http://localhost:11434")),
-            api_key=api_key,
-        ).analyze(parsed, enriched)
-        results["ai"] = ai
+        if not whitelist_match:
+            ai_provider = ai_cfg.get("provider", "ollama")
+            env_vals = _dv(str(ENV_PATH)) if ENV_PATH.exists() else {}
+            if ai_provider == "anthropic":
+                api_key = env_vals.get("ANTHROPIC_API_KEY", "")
+            elif ai_provider == "openai":
+                api_key = env_vals.get("OPENAI_API_KEY", "")
+            else:
+                api_key = env_vals.get("OLLAMA_API_KEY", "")
 
-        decision = DecisionEngine(
-            flag_threshold=float(threshold_cfg.get("flag", 0.55)),
-            junk_threshold=float(threshold_cfg.get("junk", 0.80)),
-        ).decide(ai)
-        results["decision"] = decision
+            ai = AiAnalyzer(
+                provider=ai_provider,
+                model=ai_cfg.get("model", "qwen2.5-coder:14b"),
+                timeout_seconds=int(ai_cfg.get("timeout_seconds", 120)),
+                base_url=ai_cfg.get("ollama_base_url", ai_cfg.get("base_url", "http://localhost:11434")),
+                api_key=api_key,
+            ).analyze(parsed, enriched)
+            results["ai"] = ai
+
+            decision = DecisionEngine(
+                flag_threshold=float(threshold_cfg.get("flag", 0.55)),
+                junk_threshold=float(threshold_cfg.get("junk", 0.80)),
+            ).decide(ai)
+            results["decision"] = decision
 
     except Exception as exc:
         error_msg = str(exc)

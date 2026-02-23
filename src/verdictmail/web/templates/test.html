@@ -6,8 +6,8 @@
 
 <div class="alert alert-info small">
   <i class="bi bi-info-circle me-1"></i>
-  Runs the full parse → enrich → AI → decide pipeline as a <strong>dry run</strong>.
-  No IMAP action is applied. AI analysis may take up to 120 seconds.
+  Runs the full parse → whitelist check → enrich → AI → decide pipeline as a <strong>dry run</strong>.
+  No IMAP action is applied. Whitelisted senders short-circuit the pipeline. AI analysis may take up to 120 seconds.
 </div>
 
 <!-- Input form -->
@@ -49,6 +49,19 @@
             <textarea name="body" class="form-control form-control-sm" rows="6"
               placeholder="Email body text…">{{ request.form.get('body','') }}</textarea>
           </div>
+          <div class="mb-2">
+            <label class="form-label small">
+              Originating IP <span class="text-muted">(optional — used for DNSBL reputation check)</span>
+            </label>
+            <input type="text" name="originating_ip" class="form-control form-control-sm"
+              placeholder="203.0.113.42"
+              value="{{ request.form.get('originating_ip','') }}">
+          </div>
+          <p class="text-muted small mb-0 mt-2">
+            <i class="bi bi-info-circle me-1"></i>
+            SPF, DKIM, and DMARC will always be absent on simple-form tests — synthetic emails have no authentication headers.
+            Use the <strong>Raw RFC822</strong> tab to test with a real message including authentication signals.
+          </p>
         </div>
         <!-- Raw -->
         <div class="tab-pane fade {% if tab == 'raw' %}show active{% endif %}" id="raw-tab">
@@ -95,6 +108,30 @@
         {% else %}(none){% endif %}
       </dd>
     </dl>
+  </div>
+</div>
+{% endif %}
+
+<!-- Whitelist match -->
+{% if results.whitelist_match %}
+{% set wl = results.whitelist_match %}
+<div class="card mb-3 border-success">
+  <div class="card-header text-success"><i class="bi bi-shield-check me-1"></i>Whitelist Match — Pipeline Short-Circuited</div>
+  <div class="card-body small">
+    <p class="mb-2">This sender matched a whitelist rule. Enrichment and AI analysis were skipped.</p>
+    <dl class="row mb-0">
+      {% if wl.sender %}<dt class="col-sm-3">Sender (exact)</dt><dd class="col-sm-9"><code>{{ wl.sender }}</code></dd>{% endif %}
+      {% if wl.sender_domain %}<dt class="col-sm-3">Sender domain</dt><dd class="col-sm-9"><code>{{ wl.sender_domain }}</code></dd>{% endif %}
+      {% if wl.subject_contains %}<dt class="col-sm-3">Subject contains</dt><dd class="col-sm-9"><code>{{ wl.subject_contains }}</code></dd>{% endif %}
+      {% if wl.comment %}<dt class="col-sm-3">Comment</dt><dd class="col-sm-9">{{ wl.comment }}</dd>{% endif %}
+    </dl>
+  </div>
+</div>
+<div class="card mb-3 border-success">
+  <div class="card-header"><i class="bi bi-check2-circle me-1"></i>Final Decision</div>
+  <div class="card-body text-center py-4">
+    <span class="badge badge-pass fs-4 p-3">PASS</span>
+    <p class="text-muted mt-3 mb-0 small">Whitelisted — dry run, no IMAP action applied.</p>
   </div>
 </div>
 {% endif %}
