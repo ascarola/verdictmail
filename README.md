@@ -70,7 +70,7 @@ IMAP IDLE (main thread)
 
 - Ubuntu 22.04 LTS or 24.04 LTS (or any systemd-based Linux), running as root for installation
 - Python 3.11+
-- A Gmail account with IMAP enabled (Gmail Settings → See all settings → Forwarding and POP/IMAP → Enable IMAP) and a [Gmail App Password](https://support.google.com/accounts/answer/185833) generated
+- A Gmail account with IMAP enabled (Gmail Settings → See all settings → Forwarding and POP/IMAP → Enable IMAP) and a [Gmail App Password](https://support.google.com/accounts/answer/185833) generated. Other IMAP providers should work too — see [Other IMAP providers](#other-imap-providers) below.
 - Port 80 free on the host (used by the web UI)
 - One of:
   - An OpenAI API key
@@ -192,6 +192,23 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `whitelist.enabled` | `true` | Master on/off for whitelist |
 | `whitelist.rules` | `[]` | List of whitelist rule objects |
 | `timezone` | `UTC` | IANA timezone for dashboard and audit log |
+
+---
+
+## Other IMAP providers
+
+VerdictMail is developed and tested against Gmail, but the underlying IMAP code uses only standard RFC-compliant operations (IMAP IDLE, COPY, DELETE, EXPUNGE) and should work with any IMAP server that supports IDLE.
+
+Set `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in `.env` to your account credentials for the provider, then update the IMAP settings in `verdictmail.yaml`:
+
+| Provider | `imap.host` | `imap.port` | `imap.junk_folder` |
+|----------|-------------|-------------|-------------------|
+| Gmail | `imap.gmail.com` | `993` | `[Gmail]/Spam` |
+| Fastmail | `imap.fastmail.com` | `993` | `Junk` |
+| Outlook / Hotmail | `outlook.office365.com` | `993` | `Junk` |
+| Apple iCloud | `imap.mail.me.com` | `993` | `Junk` |
+
+> **Note:** Non-Gmail providers are not officially tested. If your provider requires an app-specific password or has two-factor authentication, generate a dedicated app password the same way you would for Gmail.
 
 ---
 
