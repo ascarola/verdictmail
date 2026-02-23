@@ -29,6 +29,7 @@ import signal
 import sqlite3
 import subprocess
 import sys
+import tempfile
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -70,8 +71,20 @@ def _load_config() -> dict:
 
 
 def _save_config(cfg: dict) -> None:
-    with open(CONFIG_PATH, "w") as f:
-        yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
+    # Write to a temp file in the same directory then atomically rename into
+    # place. os.replace() is atomic on Linux (single filesystem), so a crash
+    # mid-write can never leave the config file truncated or corrupt.
+    fd, tmp_path = tempfile.mkstemp(dir=CONFIG_PATH.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w") as f:
+            yaml.dump(cfg, f, default_flow_style=False, allow_unicode=True)
+        os.replace(tmp_path, CONFIG_PATH)
+    except Exception:
+        try:
+            os.unlink(tmp_path)
+        except OSError:
+            pass
+        raise
 
 
 def _db_conn() -> sqlite3.Connection:
