@@ -803,7 +803,8 @@ def service_restart():
         flash("Daemon restarting — it will be back in a few seconds.", "success")
     except Exception as exc:
         flash(f"Restart error: {exc}", "danger")
-    return redirect(url_for("dashboard"))
+    next_url = request.form.get("next", "")
+    return redirect(next_url if next_url.startswith("/") else url_for("dashboard"))
 
 
 @app.route("/service/stop", methods=["POST"])

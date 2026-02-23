@@ -158,6 +158,55 @@
           </div>
         </div>
       </div>
+      <div class="modal-footer">
+        <button type="button" id="whitelistSenderBtn" class="btn btn-sm btn-outline-warning me-auto">
+          <i class="bi bi-shield-plus me-1"></i>Whitelist Sender
+        </button>
+        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Whitelist-from-audit modal -->
+<div class="modal fade" id="whitelistFromAuditModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content bg-dark border-secondary">
+      <div class="modal-header border-secondary">
+        <h5 class="modal-title small fw-bold">
+          <i class="bi bi-shield-plus me-2 text-warning"></i>Add Whitelist Rule
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('whitelist_add') }}">
+        <div class="modal-body">
+          <p class="text-muted small mb-3">Review and edit the pre-filled fields before adding. At least one match field is required.</p>
+          <div class="row g-3">
+            <div class="col-sm-6">
+              <label class="form-label small">Sender Email <span class="text-muted">(exact match)</span></label>
+              <input type="email" name="sender" id="wl-sender" class="form-control form-control-sm">
+            </div>
+            <div class="col-sm-6">
+              <label class="form-label small">Sender Domain <span class="text-muted">(all at domain)</span></label>
+              <input type="text" name="sender_domain" id="wl-domain" class="form-control form-control-sm">
+            </div>
+            <div class="col-12">
+              <label class="form-label small">Subject Contains <span class="text-muted">(optional — leave blank to match all from sender)</span></label>
+              <input type="text" name="subject_contains" id="wl-subject" class="form-control form-control-sm">
+            </div>
+            <div class="col-12">
+              <label class="form-label small">Comment</label>
+              <input type="text" name="comment" id="wl-comment" class="form-control form-control-sm">
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer border-secondary">
+          <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-sm btn-warning">
+            <i class="bi bi-shield-plus me-1"></i>Add to Whitelist
+          </button>
+        </div>
+      </form>
     </div>
   </div>
 </div>
@@ -165,6 +214,7 @@
 
 {% block extra_scripts %}
 <script>
+// Populate detail modal from row data
 document.getElementById('detailModal').addEventListener('show.bs.modal', function(e) {
   const btn = e.relatedTarget;
   document.getElementById('m-id').textContent          = btn.dataset.id;
@@ -182,6 +232,29 @@ document.getElementById('detailModal').addEventListener('show.bs.modal', functio
   catch { document.getElementById('m-signals').textContent = btn.dataset.signals; }
   try { document.getElementById('m-raw').textContent = JSON.stringify(JSON.parse(btn.dataset.raw), null, 2); }
   catch { document.getElementById('m-raw').textContent = btn.dataset.raw; }
+
+  // Show/hide Whitelist Sender button based on whether there's a sender
+  document.getElementById('whitelistSenderBtn').style.display = btn.dataset.sender ? '' : 'none';
+});
+
+// Whitelist Sender: close detail modal, open pre-filled whitelist modal
+document.getElementById('whitelistSenderBtn').addEventListener('click', function() {
+  const sender  = document.getElementById('m-sender').textContent.trim();
+  const subject = document.getElementById('m-subject').textContent.trim();
+  const domain  = sender.includes('@') ? sender.split('@')[1] : '';
+
+  document.getElementById('wl-sender').value  = sender;
+  document.getElementById('wl-domain').value  = domain;
+  document.getElementById('wl-subject').value = '';   // leave blank — user can add if needed
+  document.getElementById('wl-comment').value = 'Whitelisted from audit log';
+
+  // Close detail modal, then open whitelist modal after Bootstrap finishes animating
+  const detailModal = bootstrap.Modal.getInstance(document.getElementById('detailModal'));
+  document.getElementById('detailModal').addEventListener('hidden.bs.modal', function openWl() {
+    document.getElementById('detailModal').removeEventListener('hidden.bs.modal', openWl);
+    new bootstrap.Modal(document.getElementById('whitelistFromAuditModal')).show();
+  }, { once: true });
+  detailModal.hide();
 });
 </script>
 {% endblock %}

@@ -4,15 +4,23 @@
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3">
   <h4 class="mb-0"><i class="bi bi-shield-check me-2"></i>Whitelist</h4>
-  <form method="post" action="{{ url_for('whitelist_toggle') }}" class="ms-3">
-    <button type="submit" class="btn btn-sm {% if enabled %}btn-success{% else %}btn-outline-secondary{% endif %}">
-      {% if enabled %}
-        <i class="bi bi-toggle-on me-1"></i> Enabled
-      {% else %}
-        <i class="bi bi-toggle-off me-1"></i> Disabled
-      {% endif %}
-    </button>
-  </form>
+  <div class="d-flex gap-2">
+    <form method="post" action="{{ url_for('service_restart') }}">
+      <input type="hidden" name="next" value="{{ url_for('whitelist_view') }}">
+      <button type="submit" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-arrow-clockwise me-1"></i>Restart Daemon
+      </button>
+    </form>
+    <form method="post" action="{{ url_for('whitelist_toggle') }}">
+      <button type="submit" class="btn btn-sm {% if enabled %}btn-success{% else %}btn-outline-secondary{% endif %}">
+        {% if enabled %}
+          <i class="bi bi-toggle-on me-1"></i> Enabled
+        {% else %}
+          <i class="bi bi-toggle-off me-1"></i> Disabled
+        {% endif %}
+      </button>
+    </form>
+  </div>
 </div>
 
 <p class="text-muted small mb-3">
