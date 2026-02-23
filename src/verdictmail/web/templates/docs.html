@@ -220,9 +220,11 @@
             <span class="badge badge-junk me-2">MOVE_TO_JUNK</span>
           </div>
           <div class="card-body small">
-            Copies the message to <code>[Gmail]/Spam</code>, then deletes and
-            expunges the original from INBOX. The copy step is confirmed before
-            deletion to prevent message loss on error.
+            Copies the message to the configured junk folder
+            (default: <code>[Gmail]/Spam</code>), then deletes and expunges
+            the original from INBOX. The copy step is confirmed before
+            deletion to prevent message loss on error. The destination is
+            set via <code>imap.junk_folder</code> in the config.
           </div>
         </div>
       </div>
@@ -386,6 +388,7 @@
           <tr><td>imap.host</td><td><code>imap.gmail.com</code></td><td>IMAP server hostname.</td></tr>
           <tr><td>imap.port</td><td><code>993</code></td><td>IMAP server port (TLS).</td></tr>
           <tr><td>imap.folder</td><td><code>INBOX</code></td><td>Mailbox folder to monitor.</td></tr>
+          <tr><td>imap.junk_folder</td><td><code>[Gmail]/Spam</code></td><td>Destination folder for the <code>move_to_junk</code> action. Use your provider's spam folder name (e.g. <code>Junk</code> for Fastmail/Outlook, <code>Junk Email</code> for iCloud).</td></tr>
           <tr><td>worker_threads</td><td><code>4</code></td><td>Number of concurrent message-processing threads.</td></tr>
           <tr><td>startup_scan_limit</td><td><code>20</code></td><td>Max number of unread messages to process when the daemon starts. Set to <code>0</code> to disable the startup scan.</td></tr>
           <tr><td>dnsbl.lists</td><td>3 lists</td><td>DNS blocklists to query for sender IP reputation.</td></tr>
