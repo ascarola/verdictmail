@@ -13,10 +13,13 @@ from .decision_engine import FinalAction
 logger = logging.getLogger(__name__)
 
 _SUSPECT_FLAG = b"$VerdictMail-Suspect"
-_JUNK_FOLDER = "[Gmail]/Spam"
+_DEFAULT_JUNK_FOLDER = "[Gmail]/Spam"
 
 
 class ImapActionWriter:
+    def __init__(self, junk_folder: str = _DEFAULT_JUNK_FOLDER):
+        self._junk_folder = junk_folder
+
     def apply(self, uid: int, action: FinalAction, client: IMAPClient) -> None:
         """Apply the resolved action to the given message UID."""
         if action == FinalAction.PASS:
@@ -48,11 +51,11 @@ class ImapActionWriter:
     def _move_to_junk(self, uid: int, client: IMAPClient) -> None:
         # 1. Copy to junk folder
         try:
-            copy_result = client.copy([uid], _JUNK_FOLDER)
+            copy_result = client.copy([uid], self._junk_folder)
             logger.debug("UID %d: copy result: %s", uid, copy_result)
         except Exception as exc:
             logger.error(
-                "UID %d: COPY to %s failed — aborting move: %s", uid, _JUNK_FOLDER, exc
+                "UID %d: COPY to %s failed — aborting move: %s", uid, self._junk_folder, exc
             )
             raise
 
@@ -60,7 +63,7 @@ class ImapActionWriter:
         try:
             client.delete_messages([uid])
             client.expunge()
-            logger.info("UID %d: moved to %s", uid, _JUNK_FOLDER)
+            logger.info("UID %d: moved to %s", uid, self._junk_folder)
         except Exception as exc:
             logger.error(
                 "UID %d: delete/expunge failed after copy (message may be duplicated): %s",

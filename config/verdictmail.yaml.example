@@ -16,6 +16,9 @@ imap:
   folder: INBOX
   host: imap.gmail.com
   port: 993
+  # Folder to move messages into when action is MOVE_TO_JUNK.
+  # Gmail default: "[Gmail]/Spam". Other providers vary (e.g. "Junk" on Fastmail/Outlook).
+  junk_folder: "[Gmail]/Spam"
 
 paths:
   db_file: /var/log/verdictmail/verdictmail.db

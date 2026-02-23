@@ -327,7 +327,9 @@ def main() -> None:
         junk_threshold=thresholds_cfg.get("junk", 0.80),
     )
 
-    action_writer = ImapActionWriter()
+    junk_folder = imap_cfg.get("junk_folder", "[Gmail]/Spam")
+    action_writer = ImapActionWriter(junk_folder=junk_folder)
+    logger.info("Junk folder: %s", junk_folder)
     model_name = ai_model
 
     whitelist_cfg = cfg.get("whitelist", {})
