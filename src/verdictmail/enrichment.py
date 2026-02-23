@@ -316,9 +316,9 @@ class EnrichmentPipeline:
             try:
                 resp = requests.post(
                     _URLHAUS_API,
-                    data={"url": url, "token": api_key},
+                    data={"url": url},
                     timeout=5,
-                    headers={"User-Agent": "VerdictMail/1.0"},
+                    headers={"User-Agent": "VerdictMail/1.0", "Auth-Key": api_key},
                 )
                 data = resp.json()
                 if data.get("query_status") == "is_listed":
