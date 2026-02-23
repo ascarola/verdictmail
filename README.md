@@ -25,6 +25,29 @@ AI-powered email threat analysis daemon for Gmail. Monitors your inbox via IMAP 
 
 ---
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center" colspan="2">
+      <img src="screenshots/screenshot1.jpeg" alt="Dashboard" width="100%"/>
+      <br/><em>Dashboard — live stats, threat distribution, 7-day action chart, and IMAP status</em>
+    </td>
+  </tr>
+  <tr>
+    <td align="center">
+      <img src="screenshots/screenshot9.jpeg" alt="Audit log detail" width="100%"/>
+      <br/><em>Audit log — full AI reasoning, signals, and raw model response per email</em>
+    </td>
+    <td align="center">
+      <img src="screenshots/screenshot3.jpeg" alt="Whitelist" width="100%"/>
+      <br/><em>Whitelist — trusted sender rules by address, domain, or subject</em>
+    </td>
+  </tr>
+</table>
+
+---
+
 ## Architecture
 
 ```
