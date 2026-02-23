@@ -606,6 +606,7 @@ def credentials():
         anthropic_key = request.form.get("anthropic_api_key", "").strip()
         openai_key = request.form.get("openai_api_key", "").strip()
         ollama_key = request.form.get("ollama_api_key", "").strip()
+        urlhaus_key = request.form.get("urlhaus_api_key", "").strip()
         try:
             existing = dotenv_values(str(ENV_PATH)) if ENV_PATH.exists() else {}
             lines = [f"GMAIL_USERNAME={username}\n", f"GMAIL_APP_PASSWORD={password}\n"]
@@ -613,6 +614,7 @@ def credentials():
                 ("ANTHROPIC_API_KEY", anthropic_key),
                 ("OPENAI_API_KEY", openai_key),
                 ("OLLAMA_API_KEY", ollama_key),
+                ("URLHAUS_API_KEY", urlhaus_key),
             ]:
                 value = submitted or existing.get(env_var, "")
                 if value:
@@ -998,6 +1000,28 @@ def test_ollama():
             return jsonify(ok=True, msg=f"Ollama reachable at {base_url}. Models: {model_str}")
         else:
             return jsonify(ok=False, msg=f"Ollama returned HTTP {resp.status_code}")
+    except Exception as exc:
+        return jsonify(ok=False, msg=str(exc))
+
+
+@app.route("/credentials/test/urlhaus", methods=["POST"])
+@require_auth
+def test_urlhaus():
+    api_key = request.json.get("api_key", "").strip()
+    if not api_key:
+        return jsonify(ok=False, msg="API key is required.")
+    try:
+        import requests as _requests
+        resp = _requests.post(
+            "https://urlhaus-api.abuse.ch/v1/url/",
+            data={"url": "https://example.com"},
+            headers={"User-Agent": "VerdictMail/1.0", "Auth-Key": api_key},
+            timeout=8,
+        )
+        data = resp.json()
+        if "error" in data:
+            return jsonify(ok=False, msg=f"URLhaus error: {data['error']}")
+        return jsonify(ok=True, msg="URLhaus API key valid. Connection successful.")
     except Exception as exc:
         return jsonify(ok=False, msg=str(exc))
 
