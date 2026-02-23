@@ -235,6 +235,8 @@ The Flask admin interface runs on port 80 alongside the daemon.
 
 A web UI password is set on first visit. The password hash is stored in `verdictmail.yaml`; the plaintext password is never stored.
 
+> **Security note:** The web UI runs on plain HTTP (port 80) with no TLS. Credentials and session cookies are transmitted in cleartext. This is acceptable on a trusted home or private LAN, but you should not expose port 80 directly to the internet. If remote access is needed, place the UI behind a reverse proxy with TLS (e.g. nginx + Let's Encrypt) or access it over a VPN.
+
 ---
 
 ## Verification
