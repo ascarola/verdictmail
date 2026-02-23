@@ -248,34 +248,41 @@ class EnrichmentPipeline:
         headers = {"User-Agent": "VerdictMail/1.0"}
 
         for url in urls:
-            try:
-                resp = session.head(
-                    url,
-                    allow_redirects=True,
-                    timeout=5,
-                    headers=headers,
-                    verify=True,
-                )
-                final_url = resp.url
-            except Exception:
-                # Fall back to GET if HEAD not supported
+            parsed = urlparse(url)
+            is_shortener = parsed.netloc.lower().lstrip("www.") in _SHORTENER_DOMAINS
+
+            final_url = url  # default: no outbound request
+
+            if is_shortener:
+                # Only follow redirects for known shortener domains — never
+                # fetch arbitrary URLs from email bodies (prevents beaconing
+                # to malicious infrastructure).
                 try:
-                    resp = session.get(
+                    resp = session.head(
                         url,
                         allow_redirects=True,
                         timeout=5,
                         headers=headers,
-                        stream=True,
                         verify=True,
                     )
                     final_url = resp.url
-                    resp.close()
-                except Exception as exc:
-                    logger.debug("URL expansion failed for %s: %s", url, exc)
-                    final_url = url
-
-            parsed = urlparse(url)
-            is_shortener = parsed.netloc.lower().lstrip("www.") in _SHORTENER_DOMAINS
+                except Exception:
+                    # Fall back to GET if HEAD not supported
+                    try:
+                        resp = session.get(
+                            url,
+                            allow_redirects=True,
+                            timeout=5,
+                            headers=headers,
+                            stream=True,
+                            verify=True,
+                        )
+                        final_url = resp.url
+                        resp.close()
+                    except Exception as exc:
+                        logger.debug("URL expansion failed for %s: %s", url, exc)
+            else:
+                logger.debug("Skipping live fetch for non-shortener URL: %s", url)
 
             result.expanded_urls.append(
                 ExpandedUrl(original=url, final=final_url, is_shortener=is_shortener)
