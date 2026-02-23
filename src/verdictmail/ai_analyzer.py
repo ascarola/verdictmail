@@ -345,6 +345,7 @@ class AiAnalyzer:
                     max_tokens=1024,
                     system=_SYSTEM_PROMPT,
                     messages=[{"role": "user", "content": user_prompt}],
+                    temperature=0.1,
                 )
                 content = message.content[0].text
                 logger.debug("Anthropic raw response: %r", content[:500])

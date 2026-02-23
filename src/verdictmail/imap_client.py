@@ -142,12 +142,12 @@ class ImapIdleClient:
     # ------------------------------------------------------------------
 
     def fetch_raw(self, uid: int) -> bytes:
-        """Fetch the RFC822 raw bytes for a single UID."""
+        """Fetch the raw bytes for a single UID without marking it as seen."""
         assert self._client is not None
-        response = self._client.fetch([uid], ["RFC822"])
+        response = self._client.fetch([uid], ["BODY.PEEK[]"])
         if uid not in response:
             raise ValueError(f"UID {uid} not found in FETCH response")
-        return response[uid][b"RFC822"]
+        return response[uid][b"BODY[]"]
 
     # ------------------------------------------------------------------
     # Expose underlying client for imap_actions
