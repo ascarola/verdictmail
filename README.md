@@ -184,7 +184,9 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `thresholds.flag` | `0.55` | Minimum confidence to flag medium/high threat |
 | `thresholds.junk` | `0.80` | Minimum confidence to move high threat to Junk |
 | `imap.host` | `imap.gmail.com` | IMAP server |
+| `imap.port` | `993` | IMAP SSL port |
 | `imap.folder` | `INBOX` | Folder to monitor |
+| `imap.junk_folder` | `[Gmail]/Spam` | Destination folder for MOVE_TO_JUNK actions (e.g. `Junk` on Fastmail/Outlook) |
 | `worker_threads` | `4` | Concurrent message processors |
 | `startup_scan_limit` | `20` | Max unread messages to process on startup |
 | `whitelist.enabled` | `true` | Master on/off for whitelist |
