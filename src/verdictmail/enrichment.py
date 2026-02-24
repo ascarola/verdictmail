@@ -323,7 +323,7 @@ class EnrichmentPipeline:
                     headers={"User-Agent": "VerdictMail/1.0", "Auth-Key": api_key},
                 )
                 data = resp.json()
-                if data.get("query_status") == "is_listed":
+                if data.get("query_status") == "ok":
                     threat = data.get("threat", "unknown")
                     url_status = data.get("url_status", "unknown")
                     result.urlhaus_hits.append(
