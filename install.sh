@@ -33,7 +33,7 @@ header "Preflight checks"
 # OS check
 if [[ -f /etc/os-release ]]; then
     source /etc/os-release
-    if [[ "$ID" != "ubuntu" ]]; then
+    if [[ "${ID:-}" != "ubuntu" ]]; then
         warn "This script is tested on Ubuntu. Detected: ${PRETTY_NAME:-unknown}. Proceeding anyway."
     else
         info "OS: $PRETTY_NAME"
@@ -95,6 +95,9 @@ header "Cloning repository"
 if [[ -d /opt/verdictmail/.git ]]; then
     info "Repository already cloned — pulling latest changes."
     git -C /opt/verdictmail pull --ff-only
+elif [[ -d /opt/verdictmail ]] && [[ -n "$(ls -A /opt/verdictmail 2>/dev/null)" ]]; then
+    fatal "/opt/verdictmail exists and is not empty but has no .git directory. " \
+          "Remove or empty it manually and re-run."
 else
     git clone https://github.com/ascarola/verdictmail.git /opt/verdictmail
 fi
@@ -186,10 +189,13 @@ else
     echo
     echo -e "${BOLD}AI provider configuration.${RESET}\n"
 
-    PS3="  Select AI provider: "
+    PS3="  Select AI provider [1-3]: "
+    AI_PROVIDER=""
     select AI_PROVIDER in "openai" "anthropic" "ollama"; do
         [[ -n "$AI_PROVIDER" ]] && break
+        warn "Invalid selection — enter 1, 2, or 3."
     done
+    [[ -n "$AI_PROVIDER" ]] || fatal "No AI provider selected."
 
     case "$AI_PROVIDER" in
         openai)    DEFAULT_MODEL="gpt-4o-mini" ;;
