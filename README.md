@@ -82,6 +82,26 @@ IMAP IDLE (main thread)
 
 ## Installation
 
+### Quick install (recommended)
+
+Download and review the install script, then run it as root:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/ascarola/verdictmail/main/install.sh -o install.sh
+less install.sh        # review before running
+sudo bash install.sh
+```
+
+The script handles all steps below automatically and prompts interactively for credentials, AI provider, model, and timezone. It is safe to re-run if something goes wrong partway through.
+
+> **Note:** Requires Ubuntu 22.04 LTS or 24.04 LTS and Python 3.11+. Run as root or with `sudo`.
+
+---
+
+### Manual installation
+
+If you prefer to install step by step, follow the instructions below.
+
 ### 1. Install system dependencies
 
 ```bash
