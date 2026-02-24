@@ -66,6 +66,15 @@ if str(SRC_DIR) not in sys.path:
 app = Flask(__name__, template_folder="templates")
 
 
+def _safe_next_url(url: str, fallback: str) -> str:
+    """Return url only if it is a safe relative path (no scheme, no host).
+    Prevents open-redirect via protocol-relative URLs such as //evil.com."""
+    parsed = urlparse(url)
+    if url.startswith("/") and not parsed.scheme and not parsed.netloc:
+        return url
+    return fallback
+
+
 def _load_config() -> dict:
     with open(CONFIG_PATH) as f:
         return yaml.safe_load(f) or {}
@@ -164,9 +173,7 @@ def login():
         if check_password_hash(pw_hash, password):
             session["authed"] = True
             next_url = request.args.get("next", "")
-            if not next_url.startswith("/"):
-                next_url = url_for("dashboard")
-            return redirect(next_url)
+            return redirect(_safe_next_url(next_url, url_for("dashboard")))
         error = "Incorrect password."
 
     return render_template("login.html", error=error)
@@ -881,7 +888,7 @@ def service_restart():
     except Exception as exc:
         flash(f"Restart error: {exc}", "danger")
     next_url = request.form.get("next", "")
-    return redirect(next_url if next_url.startswith("/") else url_for("dashboard"))
+    return redirect(_safe_next_url(next_url, url_for("dashboard")))
 
 
 @app.route("/service/stop", methods=["POST"])
