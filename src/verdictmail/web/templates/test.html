@@ -150,6 +150,10 @@
       {% if e.new_domain %}<span class="badge bg-warning text-dark me-1">New Domain</span>{% endif %}
       {% if e.dnsbl_listed and e.dnsbl_pbl_only %}<span class="badge bg-warning text-dark me-1">DNSBL: PBL only (ISP policy)</span>
       {% elif e.dnsbl_listed %}<span class="badge bg-danger me-1">DNSBL Listed (SBL/XBL)</span>{% endif %}
+      {% if e.urlhaus_checked %}
+        {% if e.urlhaus_hits %}<span class="badge bg-danger me-1">URLhaus: Malware URL Detected</span>
+        {% else %}<span class="badge bg-success me-1">URLhaus ✓</span>{% endif %}
+      {% else %}<span class="badge bg-secondary me-1 opacity-50">URLhaus (not configured)</span>{% endif %}
     </div>
     <dl class="row mb-0">
       <dt class="col-sm-3">Domain age</dt>

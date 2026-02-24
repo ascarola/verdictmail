@@ -52,6 +52,7 @@ class EnrichmentResult:
     dnsbl_pbl_only: bool = False   # True if every hit is PBL (ISP policy) with no SBL/XBL
     dnsbl_hits: list[str] = field(default_factory=list)
     expanded_urls: list[ExpandedUrl] = field(default_factory=list)
+    urlhaus_checked: bool = False   # True if the API key was present and check ran
     urlhaus_hits: list[str] = field(default_factory=list)
     error_notes: list[str] = field(default_factory=list)
 
@@ -308,6 +309,7 @@ class EnrichmentPipeline:
             logger.debug("URLhaus lookup skipped: URLHAUS_API_KEY not configured")
             return
 
+        result.urlhaus_checked = True
         urls_to_check = [
             eu.final for eu in result.expanded_urls
             if urlparse(eu.final).scheme in ("http", "https")
