@@ -1016,12 +1016,14 @@ def test_urlhaus():
             "https://urlhaus-api.abuse.ch/v1/url/",
             data={"url": "https://example.com"},
             headers={"User-Agent": "VerdictMail/1.0", "Auth-Key": api_key},
-            timeout=8,
+            timeout=15,
         )
         data = resp.json()
         if "error" in data:
-            return jsonify(ok=False, msg=f"URLhaus error: {data['error']}")
+            return jsonify(ok=False, msg=f"URLhaus API returned: {data['error']}. Check that your key is correct.")
         return jsonify(ok=True, msg="URLhaus API key valid. Connection successful.")
+    except _requests.exceptions.Timeout:
+        return jsonify(ok=False, msg="Connection timed out. Verify your firewall allows outbound HTTPS to urlhaus-api.abuse.ch and try again.")
     except Exception as exc:
         return jsonify(ok=False, msg=str(exc))
 

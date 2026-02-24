@@ -100,8 +100,9 @@
             <td><strong>Enrich</strong></td>
             <td>Gathers objective signals about the sender and message:
                 SPF / DKIM / DMARC validation, domain age (WHOIS), DNSBL reputation
-                checks, display-name spoofing detection, and URL expansion for
-                shortened links.</td>
+                checks, display-name spoofing detection, URL expansion for shortened
+                links, and passive URLhaus malware URL lookups (if
+                <code>URLHAUS_API_KEY</code> is configured).</td>
           </tr>
           <tr>
             <td>4</td>

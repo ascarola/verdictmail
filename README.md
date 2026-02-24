@@ -16,9 +16,9 @@ AI-powered email threat analysis daemon for Gmail. Monitors your inbox via IMAP 
 
 - **Real-time monitoring** via IMAP IDLE (push, no polling)
 - **Multi-stage pipeline**: parse → whitelist check → enrich → AI → decide → act → audit
-- **Enrichment signals**: SPF, DKIM, DMARC, DNSBL reputation, WHOIS domain age, display-name spoofing, URL expansion
+- **Enrichment signals**: SPF, DKIM, DMARC, DNSBL reputation, WHOIS domain age, display-name spoofing, passive URL expansion (shorteners only — no beaconing), and [URLhaus](https://urlhaus.abuse.ch) malware URL reputation
 - **AI providers**: OpenAI, Anthropic, or a local [Ollama](https://ollama.com) instance
-- **Three actions**: pass (no change), flag (IMAP keyword), move to `[Gmail]/Spam`
+- **Three actions**: pass (no change), flag (IMAP keyword), move to configured junk folder (default: `[Gmail]/Spam`)
 - **Whitelist**: exempt trusted senders from analysis by email, domain, or subject pattern
 - **Web UI**: Flask admin interface — dashboard, audit log, configuration, whitelist, credentials, manual test, documentation
 - **Audit log**: full SQLite record of every decision including signals, reasoning, and processing time
@@ -57,7 +57,7 @@ IMAP IDLE (main thread)
             │
             ├── message_parser   — RFC 822 parsing, URL extraction
             ├── whitelist        — bypass enrichment/AI for trusted senders
-            ├── enrichment       — SPF/DMARC/DKIM/DNSBL/WHOIS/URL expansion
+            ├── enrichment       — SPF/DMARC/DKIM/DNSBL/WHOIS/URL expansion/URLhaus
             ├── ai_analyzer      — OpenAI / Anthropic / Ollama via httpx
             ├── decision_engine  — threshold logic → PASS / FLAG / MOVE_TO_JUNK
             ├── imap_actions     — set $VerdictMail-Suspect keyword or copy+delete
@@ -121,7 +121,7 @@ chown verdictmail:verdictmail /opt/verdictmail/.env
 chmod 600 /opt/verdictmail/.env
 ```
 
-Edit `/opt/verdictmail/.env` and fill in your Gmail credentials and AI provider API key.
+Edit `/opt/verdictmail/.env` and fill in your Gmail credentials and AI provider API key. `URLHAUS_API_KEY` is optional — get a free key from [abuse.ch](https://abuse.ch/) to enable passive malware URL lookups.
 
 ### 6. Configure the application
 
@@ -218,7 +218,7 @@ Set `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in `.env` to your account credenti
 |--------|------|--------|
 | `pass` | Clean mail, low threat, or whitelisted | No IMAP changes |
 | `flag` | Medium/high threat at sufficient confidence | Sets `$VerdictMail-Suspect` IMAP keyword; message stays in inbox |
-| `move_to_junk` | High/critical threat at high confidence | Copies to `[Gmail]/Spam`, deletes original |
+| `move_to_junk` | High/critical threat at high confidence | Copies to the configured junk folder (`imap.junk_folder`, default `[Gmail]/Spam`), deletes original |
 
 > **Note:** Gmail's web UI does not display custom IMAP keywords. The `$VerdictMail-Suspect` flag is visible to standard IMAP clients and is always recorded in the audit log.
 
@@ -324,6 +324,7 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 | IMAP auth failure | Confirm you are using an App Password (not your account password) and that IMAP is enabled in Gmail settings |
 | No messages processed | The daemon processes new/unseen messages; use the **Manual Test** page to verify the pipeline works |
 | DNSBL slow | DNS resolution timeouts are 3 s per list; check network connectivity |
+| URLhaus test times out | Verify outbound HTTPS to `urlhaus-api.abuse.ch` is allowed by your firewall. URLhaus lookups are silently skipped if the key is absent, so the daemon will still work without them. |
 
 ---
 
