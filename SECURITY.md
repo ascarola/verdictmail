@@ -44,9 +44,13 @@ in the GitHub profile.
 
 The following are documented design limitations, not vulnerabilities:
 
-- The web UI runs on plain HTTP (port 80) with no TLS. Do not expose it 
-  directly to the internet. Use a VPN or reverse proxy with TLS for remote 
+- The web UI runs on plain HTTP (port 80) with no TLS. Do not expose it
+  directly to the internet. Use a VPN or reverse proxy with TLS for remote
   access.
-- Gmail App Passwords are stored in `.env` with 600 permissions. Protect 
+- The `/login` route is rate-limited to 10 attempts per minute and 30 per
+  hour per IP address (HTTP 429 on breach). This provides brute-force
+  resistance on a trusted LAN but is not a substitute for TLS or VPN if
+  the UI is exposed beyond localhost.
+- Gmail App Passwords are stored in `.env` with 600 permissions. Protect
   access to the host accordingly.
 - AI provider API keys are stored in `.env`. Treat this file as a secret.
