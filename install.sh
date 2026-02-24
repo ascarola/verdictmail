@@ -204,16 +204,25 @@ else
         ollama)    DEFAULT_MODEL="qwen2.5-coder:14b" ;;
     esac
 
+    OLLAMA_BASE_URL=""
+    if [[ "$AI_PROVIDER" == "ollama" ]]; then
+        echo
+        read -rp "  Ollama base URL [http://localhost:11434]: " OLLAMA_BASE_URL
+        OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://localhost:11434}"
+    fi
+
     read -rp "  Model name [${DEFAULT_MODEL}]: " AI_MODEL
     AI_MODEL="${AI_MODEL:-$DEFAULT_MODEL}"
 
-    # Patch provider and model into yaml using python (avoids sed fragility)
+    # Patch provider, model, and optional Ollama URL into yaml
     /opt/verdictmail/venv/bin/python3 - <<PYEOF
 import yaml, pathlib
 p = pathlib.Path("/opt/verdictmail/config/verdictmail.yaml")
 cfg = yaml.safe_load(p.read_text())
 cfg.setdefault("ai", {})["provider"] = "${AI_PROVIDER}"
 cfg["ai"]["model"] = "${AI_MODEL}"
+if "${OLLAMA_BASE_URL}":
+    cfg["ai"]["ollama_base_url"] = "${OLLAMA_BASE_URL}"
 p.write_text(yaml.dump(cfg, default_flow_style=False, allow_unicode=True))
 PYEOF
 
@@ -230,7 +239,9 @@ cfg["timezone"] = "${TZ_NAME}"
 p.write_text(yaml.dump(cfg, default_flow_style=False, allow_unicode=True))
 PYEOF
 
-    success "verdictmail.yaml configured (provider=${AI_PROVIDER}, model=${AI_MODEL}, timezone=${TZ_NAME})."
+    OLLAMA_MSG=""
+    [[ -n "$OLLAMA_BASE_URL" ]] && OLLAMA_MSG=", ollama_url=${OLLAMA_BASE_URL}"
+    success "verdictmail.yaml configured (provider=${AI_PROVIDER}, model=${AI_MODEL}${OLLAMA_MSG}, timezone=${TZ_NAME})."
 fi
 
 # -----------------------------------------------------------------------------
