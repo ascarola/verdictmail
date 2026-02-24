@@ -6,7 +6,8 @@
 # Usage:
 #   sudo bash install.sh
 #
-# Tested on Ubuntu 22.04 LTS and 24.04 LTS.
+# Tested on Ubuntu 24.04 LTS. Should work on 22.04 LTS with Python 3.11+
+# installed (apt-get install python3.11 python3.11-venv).
 # =============================================================================
 
 set -euo pipefail

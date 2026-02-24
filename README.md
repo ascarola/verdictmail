@@ -69,8 +69,8 @@ IMAP IDLE (main thread)
 
 ## Requirements
 
-- Ubuntu 22.04 LTS or 24.04 LTS (or any systemd-based Linux), running as root for installation
-- Python 3.11+
+- Ubuntu 24.04 LTS (recommended) or 22.04 LTS, running as root for installation
+- Python 3.11+ — Ubuntu 24.04 includes this by default; on 22.04 you may need to install it manually (`apt-get install python3.11 python3.11-venv`)
 - A Gmail account with IMAP enabled (Gmail Settings → See all settings → Forwarding and POP/IMAP → Enable IMAP) and a [Gmail App Password](https://support.google.com/accounts/answer/185833) generated. Other IMAP providers should work too — see [Other IMAP providers](#other-imap-providers) below.
 - Port 80 free on the host (used by the web UI)
 - One of:
