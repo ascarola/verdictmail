@@ -6,8 +6,8 @@ VerdictMail is currently in beta. Only the latest release receives security upda
 
 | Version | Supported |
 |---------|-----------|
-| 0.1.x (latest) | ✅ |
-| < 0.1.0 | ❌ |
+| 0.2.x (latest) | ✅ |
+| < 0.2.0 | ❌ |
 
 ## Reporting a Vulnerability
 
