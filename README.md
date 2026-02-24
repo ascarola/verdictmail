@@ -19,6 +19,7 @@ AI-powered email threat analysis daemon for Gmail. Monitors your inbox via IMAP 
 - **Enrichment signals**: SPF, DKIM, DMARC, DNSBL reputation, WHOIS domain age, display-name spoofing, passive URL expansion (shorteners only — no beaconing), and [URLhaus](https://urlhaus.abuse.ch) malware URL reputation
 - **AI providers**: OpenAI, Anthropic, or a local [Ollama](https://ollama.com) instance
 - **Three actions**: pass (no change), flag (IMAP keyword), move to configured junk folder (default: `[Gmail]/Spam`)
+- **Aggressiveness presets**: one-click sensitivity tuning (Conservative / Default / Aggressive / Very Aggressive) with fine-grained YAML override
 - **Whitelist**: exempt trusted senders from analysis by email, domain, or subject pattern
 - **Web UI**: Flask admin interface — dashboard, audit log, configuration, whitelist, credentials, manual test, documentation
 - **Audit log**: full SQLite record of every decision including signals, reasoning, and processing time
@@ -181,8 +182,8 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `ai.model` | `gpt-4o-mini` | Model name passed to the provider |
 | `ai.timeout_seconds` | `120` | Per-request AI timeout |
 | `ai.ollama_base_url` | `http://localhost:11434` | Ollama base URL (ollama provider only) |
-| `thresholds.flag` | `0.55` | Minimum confidence to flag medium/high threat |
-| `thresholds.junk` | `0.80` | Minimum confidence to move high threat to Junk |
+| `thresholds.flag` | `0.55` | Minimum confidence to flag medium/high threat. Set via the Aggressiveness preset or directly. |
+| `thresholds.junk` | `0.80` | Minimum confidence to move high threat to Junk. Set via the Aggressiveness preset or directly. |
 | `imap.host` | `imap.gmail.com` | IMAP server |
 | `imap.port` | `993` | IMAP SSL port |
 | `imap.folder` | `INBOX` | Folder to monitor |

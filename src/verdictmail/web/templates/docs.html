@@ -290,8 +290,30 @@
     </div>
     <p class="small text-muted">
       Thresholds are adjusted on the <a href="{{ url_for('config_editor') }}" class="text-info">Configuration</a>
-      page under <code>thresholds.flag</code> and <code>thresholds.junk</code>.
+      page — either by selecting a named preset from the <strong>Aggressiveness</strong> card or by editing
+      <code>thresholds.flag</code> and <code>thresholds.junk</code> directly in the YAML editor.
       A daemon restart is required for changes to take effect.
+    </p>
+
+    <h6 class="mt-3" id="aggressiveness">Aggressiveness presets</h6>
+    <p class="small text-muted">The Configuration page offers four named presets as a convenient starting point:</p>
+    <div class="table-responsive mb-3">
+      <table class="table table-dark table-sm table-bordered small">
+        <thead class="table-secondary">
+          <tr><th>Preset</th><th>Flag threshold</th><th>Junk threshold</th><th>Behaviour</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Conservative</td><td><code>0.75</code></td><td><code>0.92</code></td><td>Only acts on very obvious threats. Lowest false-positive rate.</td></tr>
+          <tr><td>Default</td><td><code>0.55</code></td><td><code>0.80</code></td><td>Balanced sensitivity. Recommended starting point.</td></tr>
+          <tr><td>Aggressive</td><td><code>0.38</code></td><td><code>0.65</code></td><td>Flags and junks more mail. May catch more, but expect more false positives.</td></tr>
+          <tr><td>Very Aggressive</td><td><code>0.22</code></td><td><code>0.50</code></td><td>High catch rate. Intended for high-risk environments; review the audit log frequently.</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small text-muted">
+      Presets write the threshold values to <code>verdictmail.yaml</code> — you can fine-tune them
+      further in the YAML editor after applying a preset. The AI analysis itself is unaffected;
+      only the thresholds that determine what action is taken on the result change.
     </p>
 
     <!-- ================================================================ -->
@@ -675,6 +697,7 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
         <a class="nav-link" href="#threat-levels">Threat Levels</a>
         <a class="nav-link" href="#actions">Actions</a>
         <a class="nav-link" href="#decision">Decision Logic</a>
+        <a class="nav-link nav-sub" href="#aggressiveness">Aggressiveness Presets</a>
         <a class="nav-link" href="#whitelist">Whitelist</a>
         <a class="nav-link" href="#configuration">Configuration Reference</a>
         <a class="nav-link" href="#credentials">Credentials</a>

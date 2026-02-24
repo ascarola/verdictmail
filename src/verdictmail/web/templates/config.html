@@ -103,6 +103,46 @@
   </div>
 </div>
 
+<!-- Aggressiveness preset -->
+{% set thresh = cfg.get('thresholds', {}) %}
+{% set cur_flag = thresh.get('flag', 0.55) %}
+{% set cur_junk = thresh.get('junk', 0.80) %}
+{% set presets = [
+  ('conservative',  'Conservative',  0.75, 0.92, 'Only acts on very obvious threats. Lowest false-positive rate.'),
+  ('default',       'Default',       0.55, 0.80, 'Balanced sensitivity. Recommended starting point.'),
+  ('aggressive',    'Aggressive',    0.38, 0.65, 'Flags and junks more mail. May catch more, but expect more false positives.'),
+  ('very_aggressive','Very Aggressive',0.22,0.50,'High catch rate. Intended for high-risk environments; review audit log frequently.'),
+] %}
+{% set active_preset = namespace(name=None) %}
+{% for key, label, f, j, desc in presets %}
+  {% if cur_flag == f and cur_junk == j %}{% set active_preset.name = key %}{% endif %}
+{% endfor %}
+<div class="card mb-4" style="max-width:620px">
+  <div class="card-header"><i class="bi bi-speedometer2 me-1"></i> Aggressiveness</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('config_aggressiveness') }}">
+    <div class="btn-group w-100 mb-3" role="group">
+      {% for key, label, f, j, desc in presets %}
+      <button type="submit" name="preset" value="{{ key }}"
+        class="btn btn-sm {% if active_preset.name == key %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+        title="{{ desc }}">
+        {{ label }}
+      </button>
+      {% endfor %}
+    </div>
+    </form>
+    {% for key, label, f, j, desc in presets %}
+      {% if active_preset.name == key %}
+      <p class="small mb-1 text-light">{{ desc }}</p>
+      <p class="small text-muted mb-0">Flag threshold: <code>{{ f }}</code> &nbsp;·&nbsp; Junk threshold: <code>{{ j }}</code></p>
+      {% endif %}
+    {% endfor %}
+    {% if active_preset.name is none %}
+    <p class="small text-muted mb-0">Custom thresholds active — flag: <code>{{ cur_flag }}</code>, junk: <code>{{ cur_junk }}</code>. Select a preset above to apply a standard level.</p>
+    {% endif %}
+  </div>
+</div>
+
 <!-- Raw YAML editor -->
 <div class="alert alert-info small">
   <i class="bi bi-info-circle me-1"></i>
@@ -110,7 +150,7 @@
   Changes take effect after restarting the daemon.
 </div>
 
-<form method="post">
+<form method="post" id="yamlForm">
   <div class="card mb-3">
     <div class="card-header d-flex justify-content-between align-items-center">
       <span>verdictmail.yaml</span>
@@ -121,19 +161,19 @@
         rows="30" spellcheck="false" style="font-size:.85rem;background:#1a1d23;color:#e9ecef">{{ yaml_content }}</textarea>
     </div>
   </div>
-  <div class="d-flex gap-2">
-    <button type="submit" class="btn btn-primary">
-      <i class="bi bi-floppy me-1"></i> Save Configuration
-    </button>
-    <a href="{{ url_for('config_editor') }}" class="btn btn-outline-secondary">Discard Changes</a>
-    <form method="post" action="{{ url_for('service_restart') }}" class="ms-auto">
-      <button class="btn btn-outline-warning"
-        onclick="return confirm('Save first, then restart daemon?')">
-        <i class="bi bi-arrow-clockwise me-1"></i>Restart Daemon
-      </button>
-    </form>
-  </div>
 </form>
+<div class="d-flex gap-2 mb-4">
+  <button type="submit" form="yamlForm" class="btn btn-primary">
+    <i class="bi bi-floppy me-1"></i> Save Configuration
+  </button>
+  <a href="{{ url_for('config_editor') }}" class="btn btn-outline-secondary">Discard Changes</a>
+  <form method="post" action="{{ url_for('service_restart') }}" class="ms-auto">
+    <button class="btn btn-outline-warning"
+      onclick="return confirm('Save first, then restart daemon?')">
+      <i class="bi bi-arrow-clockwise me-1"></i>Restart Daemon
+    </button>
+  </form>
+</div>
 <!-- Danger zone -->
 <div class="card mb-4 border-danger" style="max-width:620px">
   <div class="card-header text-danger"><i class="bi bi-exclamation-triangle me-1"></i> Danger Zone</div>

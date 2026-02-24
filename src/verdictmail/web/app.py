@@ -459,6 +459,42 @@ def config_editor():
 
 
 # ---------------------------------------------------------------------------
+# Aggressiveness preset quick-config  POST /config/aggressiveness
+# ---------------------------------------------------------------------------
+
+_AGGRESSIVENESS_PRESETS = {
+    "conservative":  {"flag": 0.75, "junk": 0.92},
+    "default":       {"flag": 0.55, "junk": 0.80},
+    "aggressive":    {"flag": 0.38, "junk": 0.65},
+    "very_aggressive": {"flag": 0.22, "junk": 0.50},
+}
+
+@app.route("/config/aggressiveness", methods=["POST"])
+@require_auth
+def config_aggressiveness():
+    preset = request.form.get("preset", "").strip().lower()
+    if preset not in _AGGRESSIVENESS_PRESETS:
+        flash(f"Unknown preset: {preset!r}", "danger")
+        return redirect(url_for("config_editor"))
+    try:
+        cfg = _load_config()
+        values = _AGGRESSIVENESS_PRESETS[preset]
+        cfg.setdefault("thresholds", {})["flag"] = values["flag"]
+        cfg["thresholds"]["junk"] = values["junk"]
+        _save_config(cfg)
+        label = preset.replace("_", " ").title()
+        flash(
+            f"Aggressiveness set to {label!r} "
+            f"(flag ≥ {values['flag']}, junk ≥ {values['junk']}). "
+            "Restart the daemon to apply.",
+            "success",
+        )
+    except Exception as exc:
+        flash(f"Error updating aggressiveness: {exc}", "danger")
+    return redirect(url_for("config_editor"))
+
+
+# ---------------------------------------------------------------------------
 # AI provider quick-config  POST /config/ai
 # ---------------------------------------------------------------------------
 
