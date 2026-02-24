@@ -42,6 +42,8 @@ from flask import (
     Flask, flash, jsonify, redirect, render_template,
     request, session, url_for,
 )
+from flask_limiter import Limiter
+from flask_limiter.util import get_remote_address
 from werkzeug.security import check_password_hash, generate_password_hash
 
 # ---------------------------------------------------------------------------
@@ -64,6 +66,13 @@ if str(SRC_DIR) not in sys.path:
 # ---------------------------------------------------------------------------
 
 app = Flask(__name__, template_folder="templates")
+
+limiter = Limiter(
+    get_remote_address,
+    app=app,
+    default_limits=[],
+    storage_uri="memory://",
+)
 
 
 def _safe_next_url(url: str, fallback: str) -> str:
@@ -156,6 +165,7 @@ def require_auth(f):
 
 
 @app.route("/login", methods=["GET", "POST"])
+@limiter.limit("10 per minute; 30 per hour", methods=["POST"])
 def login():
     try:
         cfg = _load_config()
