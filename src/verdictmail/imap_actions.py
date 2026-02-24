@@ -41,6 +41,22 @@ class ImapActionWriter:
             client.set_flags([uid], [_SUSPECT_FLAG])
             logger.info("UID %d: flagged with %s", uid, _SUSPECT_FLAG.decode())
         except Exception as exc:
+            # Some IMAP servers (e.g. older Exchange) reject custom keywords.
+            # Fall back to the standard \Flagged system flag.
+            exc_str = str(exc).upper()
+            if any(tok in exc_str for tok in ("CANNOT", "CLIENTBUG", "INVALID", "UNKNOWNFLAG", "BAD")):
+                logger.warning(
+                    "UID %d: server rejected custom keyword %s (%s) — "
+                    "falling back to \\Flagged",
+                    uid, _SUSPECT_FLAG.decode(), exc,
+                )
+                try:
+                    client.set_flags([uid], [b"\\Flagged"])
+                    logger.info("UID %d: flagged with \\Flagged (fallback)", uid)
+                    return
+                except Exception as exc2:
+                    logger.error("UID %d: fallback \\Flagged also failed: %s", uid, exc2)
+                    raise exc2
             logger.error("UID %d: failed to set flag: %s", uid, exc)
             raise
 
