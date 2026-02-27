@@ -356,6 +356,17 @@ System-level rotation with `logrotate` is not required but can be added at `/etc
 
 ---
 
+## Development Notes
+
+VerdictMail was designed and architected by A. Scarola. The implementation 
+was developed with substantial assistance from [Claude Code](https://claude.ai/code) 
+(Anthropic's AI coding assistant), which wrote the majority of the code based on 
+detailed specifications, requirements, and iterative direction from the author. 
+All design decisions, security architecture, feature choices, and testing were 
+directed and validated by the author.
+
+---
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
