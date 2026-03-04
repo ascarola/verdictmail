@@ -192,7 +192,12 @@
 
 {% if errors %}
 <div class="card border-danger mb-4">
-  <div class="card-header text-danger">Recent Errors</div>
+  <div class="card-header text-danger d-flex justify-content-between align-items-center">
+    <span>Recent Errors</span>
+    <form method="post" action="{{ url_for('clear_errors') }}" class="d-inline">
+      <button type="submit" class="btn btn-sm btn-outline-secondary py-0">Dismiss All</button>
+    </form>
+  </div>
   <div class="table-responsive">
     <table class="table table-sm mb-0">
       <thead class="table-dark"><tr><th>#</th><th>Timestamp</th><th>Sender</th><th>Subject</th><th>Error</th></tr></thead>

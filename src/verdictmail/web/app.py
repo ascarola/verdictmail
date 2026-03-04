@@ -350,9 +350,19 @@ def dashboard():
             "FROM audit_log ORDER BY id DESC LIMIT 10"
         ).fetchall()
 
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)"
+        )
+        conn.commit()
+        dismissed_row = conn.execute(
+            "SELECT value FROM settings WHERE key='errors_dismissed_before_id'"
+        ).fetchone()
+        dismissed_before_id = int(dismissed_row["value"]) if dismissed_row else 0
+
         errors = conn.execute(
             "SELECT id,timestamp,sender,subject,action_taken "
-            "FROM audit_log WHERE action_taken LIKE 'error%' ORDER BY id DESC LIMIT 5"
+            "FROM audit_log WHERE action_taken LIKE 'error%' AND id > ? ORDER BY id DESC LIMIT 5",
+            (dismissed_before_id,),
         ).fetchall()
 
         conn.close()
@@ -970,6 +980,31 @@ def clear_logs():
     except Exception as exc:
         flash(f"Error clearing logs: {exc}", "danger")
     return redirect(url_for("config_editor"))
+
+
+# ---------------------------------------------------------------------------
+# Dismiss recent errors  POST /dashboard/clear-errors
+# ---------------------------------------------------------------------------
+
+@app.route("/dashboard/clear-errors", methods=["POST"])
+@require_auth
+def clear_errors():
+    try:
+        conn = _db_conn()
+        conn.execute("CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT)")
+        max_row = conn.execute(
+            "SELECT MAX(id) FROM audit_log WHERE action_taken LIKE 'error%'"
+        ).fetchone()
+        max_id = max_row[0] or 0
+        conn.execute(
+            "INSERT OR REPLACE INTO settings (key, value) VALUES ('errors_dismissed_before_id', ?)",
+            (str(max_id),),
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
+    return redirect(url_for("dashboard"))
 
 
 # ---------------------------------------------------------------------------
