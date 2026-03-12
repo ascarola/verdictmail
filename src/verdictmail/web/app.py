@@ -1155,21 +1155,19 @@ def api_ollama_models():
 @app.route("/api/status")
 @require_auth
 def api_status():
-    import collections
-
-    # Read last 60 lines from the rotating log file
+    # Scan log file in reverse to find the most recent IMAP status line
     log_path = Path("/var/log/verdictmail/verdictmail.log")
-    log_lines: list[str] = []
+    imap_status = "unknown"
+    connected_mailbox = "—"
     if log_path.exists():
         try:
             with open(log_path) as f:
-                log_lines = [l.rstrip() for l in collections.deque(f, 60)]
+                log_lines = [l.rstrip() for l in f]
         except Exception:
-            pass
+            log_lines = []
+    else:
+        log_lines = []
 
-    # Parse IMAP connection state from recent log lines
-    imap_status = "unknown"
-    connected_mailbox = "—"
     for line in reversed(log_lines):
         if "IMAP connected" in line:
             imap_status = "connected"
