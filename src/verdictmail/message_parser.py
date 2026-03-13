@@ -8,6 +8,7 @@ import email
 import logging
 import re
 from dataclasses import dataclass, field
+from email.header import decode_header, make_header
 from email.message import Message
 from typing import Optional
 
@@ -38,6 +39,14 @@ class ParsedMessage:
     body_text: str
     body_html: str
     urls: list[str] = field(default_factory=list)
+
+
+def _decode_header_value(value: str) -> str:
+    """Decode an RFC 2047 encoded header value (e.g. =?utf-8?B?...?=) to plain text."""
+    try:
+        return str(make_header(decode_header(value)))
+    except Exception:
+        return value
 
 
 def _extract_address(from_header: str) -> tuple[str, str]:
@@ -138,7 +147,7 @@ def parse_raw_message(raw_bytes: bytes) -> ParsedMessage:
     """Parse raw RFC822 bytes and return a ParsedMessage dataclass."""
     msg = email.message_from_bytes(raw_bytes)
 
-    from_header = msg.get("From", "")
+    from_header = _decode_header_value(msg.get("From", ""))
     display_name, sender_address = _extract_address(from_header)
     sender_domain = sender_address.split("@")[-1] if "@" in sender_address else ""
 
@@ -158,7 +167,7 @@ def parse_raw_message(raw_bytes: bytes) -> ParsedMessage:
         sender_address=sender_address,
         sender_domain=sender_domain,
         display_name=display_name,
-        subject=msg.get("Subject", ""),
+        subject=_decode_header_value(msg.get("Subject", "")),
         all_headers=all_headers,
         originating_ip=originating_ip,
         body_text=body_text,
