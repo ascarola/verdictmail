@@ -58,7 +58,7 @@ IMAP IDLE (main thread)
             │
             ├── message_parser   — RFC 822 parsing, URL extraction
             ├── whitelist        — bypass enrichment/AI for trusted senders
-            ├── enrichment       — SPF/DMARC/DKIM/DNSBL/WHOIS/URL expansion/URLhaus
+            ├── enrichment       — SPF/DMARC/DKIM/DNSBL/WHOIS/URL expansion/URLhaus/VirusTotal
             ├── ai_analyzer      — OpenAI / Anthropic / Ollama via httpx
             ├── decision_engine  — threshold logic → PASS / FLAG / MOVE_TO_JUNK
             ├── imap_actions     — set $VerdictMail-Suspect keyword or copy+delete
