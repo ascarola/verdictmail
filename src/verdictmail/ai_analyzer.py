@@ -155,6 +155,16 @@ def _build_user_prompt(parsed_message, enrichment_result) -> str:
             lines.append(f"  Listed: {hit}")
         lines.append("")
 
+    # VirusTotal
+    if enrichment_result.virustotal_hits:
+        lines.append("--- VirusTotal Threat Intelligence ---")
+        lines.append("  ALERT: One or more URLs or IPs in this message were flagged by VirusTotal.")
+        lines.append("  VirusTotal aggregates results from 90+ antivirus and security vendors.")
+        lines.append("  A match is a strong indicator of malicious or phishing content.")
+        for hit in enrichment_result.virustotal_hits:
+            lines.append(f"  Flagged: {hit}")
+        lines.append("")
+
     # Body (truncated)
     body = parsed_message.body_text.strip()
     if not body and parsed_message.body_html:
