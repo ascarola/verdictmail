@@ -152,6 +152,12 @@ else
     read -rsp "  URLhaus API key: " URLHAUS_KEY
     echo
 
+    echo
+    echo -e "${BOLD}VirusTotal threat intelligence (optional).${RESET}"
+    echo -e "Get a free key at https://www.virustotal.com — leave blank to skip.\n"
+    read -rsp "  VirusTotal API key: " VIRUSTOTAL_KEY
+    echo
+
     cat > /opt/verdictmail/.env <<EOF
 # VerdictMail — environment variables
 # Never commit this file to version control.
@@ -165,9 +171,13 @@ OPENAI_API_KEY=${OPENAI_KEY}
 ANTHROPIC_API_KEY=${ANTHROPIC_KEY}
 OLLAMA_API_KEY=${OLLAMA_KEY}
 
-# URLhaus threat intelligence — optional but recommended
+# URLhaus threat intelligence — optional
 # Free API key from https://abuse.ch/
 URLHAUS_API_KEY=${URLHAUS_KEY}
+
+# VirusTotal threat intelligence — optional
+# Free API key from https://www.virustotal.com
+VIRUSTOTAL_API_KEY=${VIRUSTOTAL_KEY}
 EOF
 
     chown verdictmail:verdictmail /opt/verdictmail/.env
