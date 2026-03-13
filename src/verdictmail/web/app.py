@@ -806,6 +806,11 @@ def test():
         if whitelist_match:
             results["whitelist_match"] = whitelist_match
         else:
+            env_vals = _dv(str(ENV_PATH)) if ENV_PATH.exists() else {}
+            import os as _os
+            for _k in ("URLHAUS_API_KEY", "VIRUSTOTAL_API_KEY"):
+                if env_vals.get(_k):
+                    _os.environ.setdefault(_k, env_vals[_k])
             enriched = EnrichmentPipeline(dnsbl_lists).run(raw_bytes, parsed)
             results["enriched"] = enriched
 
