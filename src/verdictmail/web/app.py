@@ -67,6 +67,19 @@ if str(SRC_DIR) not in sys.path:
 
 app = Flask(__name__, template_folder="templates")
 
+
+@app.template_filter("decode_header")
+def decode_header_filter(value: str) -> str:
+    """Decode RFC 2047 encoded header values (=?utf-8?B?...?=) for display."""
+    if not value:
+        return value
+    try:
+        from email.header import decode_header, make_header
+        return str(make_header(decode_header(value)))
+    except Exception:
+        return value
+
+
 limiter = Limiter(
     get_remote_address,
     app=app,

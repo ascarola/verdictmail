@@ -161,7 +161,7 @@
           <td class="text-muted">{{ r['id'] }}</td>
           <td class="text-muted small">{{ r['timestamp'] | local_dt(tz_name) }}</td>
           <td class="small">{{ r['sender'] or '—' }}</td>
-          <td class="small">{{ r['subject'] or '—' }}</td>
+          <td class="small">{{ (r['subject'] or '—') | decode_header }}</td>
           <td><span class="threat-{{ r['threat_level'] or 'none' }}">{{ r['threat_level'] or 'none' }}</span></td>
           <td>
             {% if r['confidence'] is not none %}
@@ -207,7 +207,7 @@
           <td class="text-muted">{{ r['id'] }}</td>
           <td class="small text-muted">{{ r['timestamp'][:19] if r['timestamp'] else '—' }}</td>
           <td class="small">{{ r['sender'] or '—' }}</td>
-          <td class="small">{{ r['subject'] or '—' }}</td>
+          <td class="small">{{ (r['subject'] or '—') | decode_header }}</td>
           <td class="small text-danger">{{ r['action_taken'] }}</td>
         </tr>
         {% endfor %}

@@ -52,7 +52,7 @@
           <td class="text-muted">{{ r['id'] }}</td>
           <td class="small text-muted">{{ r['timestamp'] | local_dt(tz_name) }}</td>
           <td class="small">{{ r['sender'] or '—' }}</td>
-          <td class="small">{{ (r['subject'] or '—')[:60] }}</td>
+          <td class="small">{{ ((r['subject'] or '—') | decode_header)[:60] }}</td>
           <td>
             <span class="threat-{{ r['threat_level'] or 'none' }}">{{ r['threat_level'] or '—' }}</span>
           </td>
@@ -72,7 +72,7 @@
               data-bs-toggle="modal" data-bs-target="#detailModal"
               data-id="{{ r['id'] }}"
               data-sender="{{ r['sender'] or '' }}"
-              data-subject="{{ r['subject'] or '' }}"
+              data-subject="{{ (r['subject'] or '') | decode_header }}"
               data-timestamp="{{ r['timestamp'] | local_dt(tz_name) }}"
               data-threat="{{ r['threat_level'] or '' }}"
               data-confidence="{{ r['confidence'] or '' }}"
