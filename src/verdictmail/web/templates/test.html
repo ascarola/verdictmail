@@ -154,6 +154,10 @@
         {% if e.urlhaus_hits %}<span class="badge bg-danger me-1">URLhaus: Malware URL Detected</span>
         {% else %}<span class="badge bg-success me-1">URLhaus ✓</span>{% endif %}
       {% else %}<span class="badge bg-secondary me-1 opacity-50">URLhaus (not configured)</span>{% endif %}
+      {% if e.virustotal_checked %}
+        {% if e.virustotal_hits %}<span class="badge bg-danger me-1">VirusTotal: Threat Detected</span>
+        {% else %}<span class="badge bg-success me-1">VirusTotal ✓</span>{% endif %}
+      {% else %}<span class="badge bg-secondary me-1 opacity-50">VirusTotal (not configured)</span>{% endif %}
     </div>
     <dl class="row mb-0">
       <dt class="col-sm-3">Domain age</dt>
@@ -181,6 +185,14 @@
       <dd class="col-sm-9">
         <ul class="mb-0 ps-3">
           {% for hit in e.urlhaus_hits %}<li class="text-danger"><code>{{ hit }}</code></li>{% endfor %}
+        </ul>
+      </dd>
+      {% endif %}
+      {% if e.virustotal_hits %}
+      <dt class="col-sm-3 text-danger">VirusTotal hits</dt>
+      <dd class="col-sm-9">
+        <ul class="mb-0 ps-3">
+          {% for hit in e.virustotal_hits %}<li class="text-danger"><code>{{ hit }}</code></li>{% endfor %}
         </ul>
       </dd>
       {% endif %}

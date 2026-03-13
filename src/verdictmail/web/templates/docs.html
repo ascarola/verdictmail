@@ -37,7 +37,7 @@
        style="overflow-y:auto; max-height:calc(100vh - 72px)">
 
     <h4 class="mb-1"><i class="bi bi-book me-2"></i>Documentation</h4>
-    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.2.0</p>
+    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.2.2</p>
 
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="overview">Overview</h5>
@@ -101,8 +101,10 @@
             <td>Gathers objective signals about the sender and message:
                 SPF / DKIM / DMARC validation, domain age (WHOIS), DNSBL reputation
                 checks, display-name spoofing detection, URL expansion for shortened
-                links, and passive URLhaus malware URL lookups (if
-                <code>URLHAUS_API_KEY</code> is configured).</td>
+                links, passive URLhaus malware URL lookups (if
+                <code>URLHAUS_API_KEY</code> is configured), and VirusTotal URL &amp;
+                IP reputation checks against 90+ security vendors (if
+                <code>VIRUSTOTAL_API_KEY</code> is configured).</td>
           </tr>
           <tr>
             <td>4</td>
@@ -448,6 +450,7 @@
           <tr><td><code>ANTHROPIC_API_KEY</code></td><td>If provider = anthropic</td><td>Anthropic API key.</td></tr>
           <tr><td><code>OLLAMA_API_KEY</code></td><td>If Ollama requires auth</td><td>Optional; most local Ollama instances don't need this.</td></tr>
           <tr><td><code>URLHAUS_API_KEY</code></td><td>Optional</td><td>Free API key from <a href="https://abuse.ch/" class="text-info" target="_blank">abuse.ch</a> for URLhaus malware URL lookups. Register, then copy the key from your profile. URLhaus lookups are silently skipped if this is not set.</td></tr>
+          <tr><td><code>VIRUSTOTAL_API_KEY</code></td><td>Optional</td><td>Free API key from <a href="https://www.virustotal.com" class="text-info" target="_blank">virustotal.com</a> for URL and sender IP reputation checks against 90+ security vendors. Free tier allows 4 requests/minute. Lookups are silently skipped if this is not set.</td></tr>
         </tbody>
       </table>
     </div>

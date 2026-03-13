@@ -31,6 +31,8 @@ _DOMAIN_IN_NAME_RE = re.compile(
 )
 
 _URLHAUS_API = "https://urlhaus-api.abuse.ch/v1/url/"
+_VT_URL_API  = "https://www.virustotal.com/api/v3/urls/{}"
+_VT_IP_API   = "https://www.virustotal.com/api/v3/ip_addresses/{}"
 
 
 @dataclass
@@ -54,6 +56,8 @@ class EnrichmentResult:
     expanded_urls: list[ExpandedUrl] = field(default_factory=list)
     urlhaus_checked: bool = False   # True if the API key was present and check ran
     urlhaus_hits: list[str] = field(default_factory=list)
+    virustotal_checked: bool = False  # True if the API key was present and check ran
+    virustotal_hits: list[str] = field(default_factory=list)
     error_notes: list[str] = field(default_factory=list)
 
 
@@ -100,6 +104,9 @@ class EnrichmentPipeline:
 
         # URLhaus threat intelligence (uses final URLs from expansion)
         self._check_urlhaus(result)
+
+        # VirusTotal URL + IP reputation
+        self._check_virustotal(result, originating_ip)
 
         return result
 
@@ -334,3 +341,71 @@ class EnrichmentPipeline:
                     )
             except Exception as exc:
                 logger.debug("URLhaus lookup failed for %s: %s", url, exc)
+
+    # ------------------------------------------------------------------
+    # VirusTotal URL + IP reputation
+    # ------------------------------------------------------------------
+
+    def _check_virustotal(self, result: EnrichmentResult, originating_ip: Optional[str]) -> None:
+        """Check URLs and sender IP against VirusTotal's reputation database.
+        Requires VIRUSTOTAL_API_KEY in the environment; skips silently if absent.
+        Checks sender IP (1 request) and up to 2 URLs (2 requests) to stay
+        within the free-tier rate limit of 4 requests/minute."""
+        import base64
+        import os
+        api_key = os.environ.get("VIRUSTOTAL_API_KEY", "").strip()
+        if not api_key:
+            logger.debug("VirusTotal lookup skipped: VIRUSTOTAL_API_KEY not configured")
+            return
+
+        result.virustotal_checked = True
+        headers = {"x-apikey": api_key, "User-Agent": "VerdictMail/1.0"}
+
+        def _vt_get(url: str) -> dict:
+            resp = requests.get(url, headers=headers, timeout=10)
+            if resp.status_code == 429:
+                logger.debug("VirusTotal rate limit reached — skipping remaining checks")
+                return {"_rate_limited": True}
+            resp.raise_for_status()
+            return resp.json()
+
+        def _stats_to_hit(label: str, stats: dict) -> Optional[str]:
+            malicious  = stats.get("malicious", 0)
+            suspicious = stats.get("suspicious", 0)
+            total      = sum(stats.values())
+            if malicious >= 3 or (malicious + suspicious) >= 5:
+                return f"{label} (malicious={malicious}/{total}, suspicious={suspicious}/{total})"
+            return None
+
+        # --- IP check ---
+        if originating_ip:
+            try:
+                data = _vt_get(_VT_IP_API.format(originating_ip))
+                if data.get("_rate_limited"):
+                    return
+                stats = data.get("data", {}).get("attributes", {}).get("last_analysis_stats", {})
+                hit = _stats_to_hit(f"IP {originating_ip}", stats)
+                if hit:
+                    result.virustotal_hits.append(hit)
+                    logger.info("VirusTotal IP hit: %s", hit)
+            except Exception as exc:
+                logger.debug("VirusTotal IP lookup failed for %s: %s", originating_ip, exc)
+
+        # --- URL checks (up to 2) ---
+        urls_to_check = [
+            eu.final for eu in result.expanded_urls
+            if urlparse(eu.final).scheme in ("http", "https")
+        ][:2]
+        for url in urls_to_check:
+            try:
+                url_id = base64.urlsafe_b64encode(url.encode()).decode().rstrip("=")
+                data = _vt_get(_VT_URL_API.format(url_id))
+                if data.get("_rate_limited"):
+                    return
+                stats = data.get("data", {}).get("attributes", {}).get("last_analysis_stats", {})
+                hit = _stats_to_hit(url, stats)
+                if hit:
+                    result.virustotal_hits.append(hit)
+                    logger.info("VirusTotal URL hit: %s", hit)
+            except Exception as exc:
+                logger.debug("VirusTotal URL lookup failed for %s: %s", url, exc)

@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.2.0-blue)
+![Version](https://img.shields.io/badge/version-0.2.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -16,7 +16,7 @@ AI-powered email threat analysis daemon for Gmail. Monitors your inbox via IMAP 
 
 - **Real-time monitoring** via IMAP IDLE (push, no polling)
 - **Multi-stage pipeline**: parse → whitelist check → enrich → AI → decide → act → audit
-- **Enrichment signals**: SPF, DKIM, DMARC, DNSBL reputation, WHOIS domain age, display-name spoofing, passive URL expansion (shorteners only — no beaconing), and [URLhaus](https://urlhaus.abuse.ch) malware URL reputation
+- **Enrichment signals**: SPF, DKIM, DMARC, DNSBL reputation, WHOIS domain age, display-name spoofing, passive URL expansion (shorteners only — no beaconing), [URLhaus](https://urlhaus.abuse.ch) malware URL reputation, and [VirusTotal](https://www.virustotal.com) URL & IP reputation (90+ vendors)
 - **AI providers**: OpenAI, Anthropic, or a local [Ollama](https://ollama.com) instance
 - **Three actions**: pass (no change), flag (IMAP keyword), move to configured junk folder (default: `[Gmail]/Spam`)
 - **Aggressiveness presets**: one-click sensitivity tuning (Conservative / Default / Aggressive / Very Aggressive) with fine-grained YAML override
@@ -142,7 +142,7 @@ chown verdictmail:verdictmail /opt/verdictmail/.env
 chmod 600 /opt/verdictmail/.env
 ```
 
-Edit `/opt/verdictmail/.env` and fill in your Gmail credentials and AI provider API key. `URLHAUS_API_KEY` is optional — get a free key from [abuse.ch](https://abuse.ch/) to enable passive malware URL lookups.
+Edit `/opt/verdictmail/.env` and fill in your Gmail credentials and AI provider API key. Two optional threat intelligence keys can also be added: `URLHAUS_API_KEY` (free from [abuse.ch](https://abuse.ch/)) for malware URL lookups, and `VIRUSTOTAL_API_KEY` (free from [virustotal.com](https://www.virustotal.com)) for URL and IP reputation checks against 90+ security vendors. Both are silently skipped if not set.
 
 ### 6. Configure the application
 

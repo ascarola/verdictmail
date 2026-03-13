@@ -670,6 +670,7 @@ def credentials():
         openai_key = request.form.get("openai_api_key", "").strip()
         ollama_key = request.form.get("ollama_api_key", "").strip()
         urlhaus_key = request.form.get("urlhaus_api_key", "").strip()
+        virustotal_key = request.form.get("virustotal_api_key", "").strip()
         try:
             existing = dotenv_values(str(ENV_PATH)) if ENV_PATH.exists() else {}
             lines = [f"GMAIL_USERNAME={username}\n", f"GMAIL_APP_PASSWORD={password}\n"]
@@ -678,6 +679,7 @@ def credentials():
                 ("OPENAI_API_KEY", openai_key),
                 ("OLLAMA_API_KEY", ollama_key),
                 ("URLHAUS_API_KEY", urlhaus_key),
+                ("VIRUSTOTAL_API_KEY", virustotal_key),
             ]:
                 value = submitted or existing.get(env_var, "")
                 if value:
@@ -1112,6 +1114,32 @@ def test_urlhaus():
         return jsonify(ok=True, msg="URLhaus API key valid. Connection successful.")
     except _requests.exceptions.Timeout:
         return jsonify(ok=False, msg="Connection timed out. Verify your firewall allows outbound HTTPS to urlhaus-api.abuse.ch and try again.")
+    except Exception as exc:
+        return jsonify(ok=False, msg=str(exc))
+
+
+@app.route("/credentials/test/virustotal", methods=["POST"])
+@require_auth
+def test_virustotal():
+    api_key = request.json.get("api_key", "").strip()
+    if not api_key:
+        return jsonify(ok=False, msg="API key is required.")
+    try:
+        import requests as _requests
+        resp = _requests.get(
+            "https://www.virustotal.com/api/v3/ip_addresses/8.8.8.8",
+            headers={"x-apikey": api_key, "User-Agent": "VerdictMail/1.0"},
+            timeout=10,
+        )
+        if resp.status_code == 200:
+            return jsonify(ok=True, msg="VirusTotal API key valid. Connection successful.")
+        if resp.status_code == 401:
+            return jsonify(ok=False, msg="Invalid API key. Check that you copied it correctly from virustotal.com.")
+        if resp.status_code == 429:
+            return jsonify(ok=True, msg="API key valid but rate limit reached. This is normal for the free tier — try again in a minute.")
+        return jsonify(ok=False, msg=f"VirusTotal returned HTTP {resp.status_code}.")
+    except _requests.exceptions.Timeout:
+        return jsonify(ok=False, msg="Connection timed out. Verify your firewall allows outbound HTTPS to www.virustotal.com.")
     except Exception as exc:
         return jsonify(ok=False, msg=str(exc))
 
