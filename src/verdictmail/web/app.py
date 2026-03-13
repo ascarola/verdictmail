@@ -681,9 +681,8 @@ def credentials():
                 ("URLHAUS_API_KEY", urlhaus_key),
                 ("VIRUSTOTAL_API_KEY", virustotal_key),
             ]:
-                value = submitted or existing.get(env_var, "")
-                if value:
-                    lines.append(f"{env_var}={value}\n")
+                if submitted:
+                    lines.append(f"{env_var}={submitted}\n")
             ENV_PATH.write_text("".join(lines))
             flash("Credentials saved. Restart the daemon for changes to take effect.", "success")
         except Exception as exc:
