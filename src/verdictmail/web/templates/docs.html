@@ -99,8 +99,10 @@
             <td>3</td>
             <td><strong>Enrich</strong></td>
             <td>Gathers objective signals about the sender and message:
-                SPF / DKIM / DMARC validation, domain age (WHOIS), DNSBL reputation
-                checks, display-name spoofing detection, URL expansion for shortened
+                SPF / DKIM / DMARC validation, DKIM alignment checking (detects
+                cousin-domain signing where <code>d=</code> does not match the
+                header From), domain age (WHOIS), DNSBL reputation checks,
+                display-name spoofing detection, URL expansion for shortened
                 links, passive URLhaus malware URL lookups (if
                 <code>URLHAUS_API_KEY</code> is configured), and VirusTotal URL &amp;
                 IP reputation checks against 90+ security vendors (if
