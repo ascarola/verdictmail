@@ -16,7 +16,7 @@ AI-powered email threat analysis daemon for Gmail. Monitors your inbox via IMAP 
 
 - **Real-time monitoring** via IMAP IDLE (push, no polling)
 - **Multi-stage pipeline**: parse → whitelist check → enrich → AI → decide → act → audit
-- **Enrichment signals**: SPF, DKIM, DMARC, DNSBL reputation, WHOIS domain age, display-name spoofing, passive URL expansion (shorteners only — no beaconing), [URLhaus](https://urlhaus.abuse.ch) malware URL reputation, and [VirusTotal](https://www.virustotal.com) URL & IP reputation (90+ vendors)
+- **Enrichment signals**: SPF, DKIM, DMARC, DKIM alignment (cousin-domain `d=` mismatch detection), DNSBL reputation, WHOIS domain age, display-name spoofing, passive URL expansion (shorteners only — no beaconing), [URLhaus](https://urlhaus.abuse.ch) malware URL reputation, and [VirusTotal](https://www.virustotal.com) URL & IP reputation (90+ vendors)
 - **AI providers**: OpenAI, Anthropic, or a local [Ollama](https://ollama.com) instance
 - **Three actions**: pass (no change), flag (IMAP keyword), move to configured junk folder (default: `[Gmail]/Spam`)
 - **Aggressiveness presets**: one-click sensitivity tuning (Conservative / Default / Aggressive / Very Aggressive) with fine-grained YAML override
@@ -58,7 +58,7 @@ IMAP IDLE (main thread)
             │
             ├── message_parser   — RFC 822 parsing, URL extraction
             ├── whitelist        — bypass enrichment/AI for trusted senders
-            ├── enrichment       — SPF/DMARC/DKIM/DNSBL/WHOIS/URL expansion/URLhaus/VirusTotal
+            ├── enrichment       — SPF/DMARC/DKIM/DKIM alignment/DNSBL/WHOIS/URL expansion/URLhaus/VirusTotal
             ├── ai_analyzer      — OpenAI / Anthropic / Ollama via httpx
             ├── decision_engine  — threshold logic → PASS / FLAG / MOVE_TO_JUNK
             ├── imap_actions     — set $VerdictMail-Suspect keyword or copy+delete
