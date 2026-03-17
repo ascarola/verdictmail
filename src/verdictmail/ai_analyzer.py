@@ -106,6 +106,21 @@ def _build_user_prompt(parsed_message, enrichment_result) -> str:
     lines.append(f"  SPF valid:   {enrichment_result.spf_valid}")
     lines.append(f"  DKIM valid:  {enrichment_result.dkim_valid}")
     lines.append(f"  DMARC valid: {enrichment_result.dmarc_valid}")
+
+    # DKIM alignment
+    dkim_mismatch = enrichment_result.dkim_domain_mismatch
+    if dkim_mismatch is None:
+        lines.append("  DKIM alignment: N/A (no DKIM-Signature header present)")
+    elif dkim_mismatch:
+        dkim_doms = ", ".join(enrichment_result.dkim_domains) or "unknown"
+        from_dom = parsed_message.sender_domain or "unknown"
+        lines.append(f"  DKIM alignment: MISALIGNED — signing domain(s) [{dkim_doms}] do not match From domain [{from_dom}]")
+        lines.append("  NOTE: A message where DKIM passes but d= does not match the From domain is")
+        lines.append("        technically authenticated but structurally suspicious. This pattern is")
+        lines.append("        used in cousin-domain phishing and mailing-list abuse.")
+    else:
+        dkim_doms = ", ".join(enrichment_result.dkim_domains)
+        lines.append(f"  DKIM alignment: aligned (signing domain(s): {dkim_doms})")
     lines.append("")
 
     # Sender intelligence

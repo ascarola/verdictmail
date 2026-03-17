@@ -147,6 +147,8 @@
       {% if e.dkim_valid %}<span class="badge bg-success me-1">DKIM ✓</span>{% else %}<span class="badge bg-danger me-1">DKIM ✗</span>{% endif %}
       {% if e.dmarc_valid %}<span class="badge bg-success me-1">DMARC ✓</span>{% else %}<span class="badge bg-danger me-1">DMARC ✗</span>{% endif %}
       {% if e.display_name_spoofing %}<span class="badge bg-danger me-1">Spoofing Detected</span>{% endif %}
+      {% if e.dkim_domain_mismatch == true %}<span class="badge bg-warning text-dark me-1">DKIM Misaligned</span>
+      {% elif e.dkim_domain_mismatch == false %}<span class="badge bg-success me-1">DKIM Aligned</span>{% endif %}
       {% if e.new_domain %}<span class="badge bg-warning text-dark me-1">New Domain</span>{% endif %}
       {% if e.dnsbl_listed and e.dnsbl_pbl_only %}<span class="badge bg-warning text-dark me-1">DNSBL: PBL only (ISP policy)</span>
       {% elif e.dnsbl_listed %}<span class="badge bg-danger me-1">DNSBL Listed (SBL/XBL)</span>{% endif %}
@@ -162,6 +164,13 @@
     <dl class="row mb-0">
       <dt class="col-sm-3">Domain age</dt>
       <dd class="col-sm-9">{{ e.domain_age_days ~ ' days' if e.domain_age_days is not none else 'unknown' }}</dd>
+      {% if e.dkim_domains %}
+      <dt class="col-sm-3">DKIM signing domain(s)</dt>
+      <dd class="col-sm-9">
+        {{ e.dkim_domains | join(', ') }}
+        {% if e.dkim_domain_mismatch %}<span class="text-warning ms-1">(none match From domain)</span>{% endif %}
+      </dd>
+      {% endif %}
       {% if e.dnsbl_hits %}
       <dt class="col-sm-3">DNSBL hits</dt>
       <dd class="col-sm-9">{{ e.dnsbl_hits | join(', ') }}</dd>

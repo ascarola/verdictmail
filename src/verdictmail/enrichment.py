@@ -58,6 +58,8 @@ class EnrichmentResult:
     urlhaus_hits: list[str] = field(default_factory=list)
     virustotal_checked: bool = False  # True if the API key was present and check ran
     virustotal_hits: list[str] = field(default_factory=list)
+    dkim_domains: list[str] = field(default_factory=list)  # d= values from all DKIM-Signature headers
+    dkim_domain_mismatch: Optional[bool] = None  # None=no sig, False=aligned, True=misaligned
     error_notes: list[str] = field(default_factory=list)
 
 
@@ -83,6 +85,9 @@ class EnrichmentPipeline:
 
         # DKIM
         self._check_dkim(raw_bytes, result)
+
+        # DKIM alignment (d= vs From domain)
+        self._check_dkim_alignment(raw_bytes, parsed_message, result)
 
         # Display-name spoofing
         if sender_domain and display_name:
@@ -153,6 +158,49 @@ class EnrichmentPipeline:
             logger.debug(note)
             result.error_notes.append(note)
             result.dkim_valid = False
+
+    # ------------------------------------------------------------------
+    # DKIM alignment
+    # ------------------------------------------------------------------
+
+    def _check_dkim_alignment(self, raw_bytes: bytes, parsed_message, result: EnrichmentResult) -> None:
+        """
+        Extract d= domain(s) from all DKIM-Signature headers and compare against
+        the header From domain.
+
+        dkim_domain_mismatch:
+          None  — no DKIM-Signature header present (cannot assess alignment)
+          False — at least one d= matches the sender domain (aligned)
+          True  — signatures present but none match the sender domain (misaligned)
+        """
+        import email as _email
+        msg = _email.message_from_bytes(raw_bytes)
+        sig_headers: list[str] = msg.get_all("DKIM-Signature") or []
+
+        if not sig_headers:
+            # dkim_domains and dkim_domain_mismatch stay at their defaults ([], None)
+            return
+
+        d_re = re.compile(r'\bd=([^;\s]+)', re.IGNORECASE)
+        domains: list[str] = []
+        for sig in sig_headers:
+            m = d_re.search(sig)
+            if m:
+                domains.append(m.group(1).rstrip(".").lower())
+
+        result.dkim_domains = domains
+        sender_domain = (parsed_message.sender_domain or "").lower()
+
+        if not domains:
+            # Headers present but no parseable d= (malformed signatures)
+            result.dkim_domain_mismatch = True
+            return
+
+        result.dkim_domain_mismatch = not any(d == sender_domain for d in domains)
+        logger.debug(
+            "DKIM alignment: sender_domain=%s dkim_domains=%s mismatch=%s",
+            sender_domain, domains, result.dkim_domain_mismatch,
+        )
 
     # ------------------------------------------------------------------
     # Display-name spoofing
