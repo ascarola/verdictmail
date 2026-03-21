@@ -302,15 +302,19 @@ class AiAnalyzer:
 
     def _analyze_ollama(self, parsed_message, enrichment_result) -> AiResult:
         user_prompt = _build_user_prompt(parsed_message, enrichment_result)
+        # Do not send a system role message — it would override the modelfile's
+        # SYSTEM prompt (which carries /no_think for Qwen3.x and similar models),
+        # causing thinking mode to activate. Fold instructions into the user turn.
+        combined_prompt = f"{_SYSTEM_PROMPT}\n\n{user_prompt}"
         payload = {
             "model": self.model,
             "messages": [
-                {"role": "system", "content": _SYSTEM_PROMPT},
-                {"role": "user", "content": user_prompt},
+                {"role": "user", "content": combined_prompt},
             ],
             "format": "json",
             "stream": False,
-            "options": {"temperature": 0.1},
+            "think": False,
+            "options": {"temperature": 0.1, "num_ctx": 8192},
         }
         url = f"{self.base_url}/api/chat"
         raw_response = ""

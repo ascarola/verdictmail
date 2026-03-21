@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.2.3-blue)
+![Version](https://img.shields.io/badge/version-0.2.4-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -76,7 +76,7 @@ IMAP IDLE (main thread)
 - One of:
   - An OpenAI API key
   - An Anthropic API key
-  - A running [Ollama](https://ollama.com) instance (local or remote) with a model pulled (e.g. `ollama pull qwen2.5-coder:14b`)
+  - A running [Ollama](https://ollama.com) instance (local or remote) with a model pulled (e.g. `ollama pull qwen2.5-coder:14b`). Models with thinking/reasoning mode (Qwen3, DeepSeek-R1, etc.) are fully supported — thinking is automatically disabled for latency-sensitive pipeline use.
 
 ---
 
