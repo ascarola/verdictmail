@@ -311,7 +311,6 @@ class AiAnalyzer:
             "messages": [
                 {"role": "user", "content": combined_prompt},
             ],
-            "format": "json",
             "stream": False,
             "think": False,
             "options": {"temperature": 0.1, "num_ctx": 8192},
@@ -334,7 +333,7 @@ class AiAnalyzer:
                 raw_response = resp.text
                 data = resp.json()
                 content = data["message"]["content"]
-                parsed_json = json.loads(content)
+                parsed_json = _extract_json(content)
                 ai_result = _validate_ai_response(parsed_json)
                 ai_result.raw_response = raw_response
                 logger.info(
