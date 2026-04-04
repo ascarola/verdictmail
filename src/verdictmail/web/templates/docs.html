@@ -37,13 +37,13 @@
        style="overflow-y:auto; max-height:calc(100vh - 72px)">
 
     <h4 class="mb-1"><i class="bi bi-book me-2"></i>Documentation</h4>
-    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.2.5</p>
+    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.3.0</p>
 
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="overview">Overview</h5>
     <hr class="mt-1">
     <p>
-      VerdictMail is a headless Linux daemon that monitors a Gmail inbox using
+      VerdictMail is a headless Linux daemon that monitors an IMAP inbox using
       <strong>IMAP IDLE</strong> — a push-based protocol that delivers new message
       notifications in real time without polling. Each incoming message is automatically
       routed through a multi-stage enrichment and AI analysis pipeline, then acted on
@@ -213,7 +213,7 @@
             Sets the custom IMAP keyword <code>$VerdictMail-Suspect</code> on
             the message. The message <strong>stays in your inbox</strong>.
             <br><br>
-            <span class="text-muted">Note: Gmail's web UI does not render custom IMAP
+            <span class="text-muted">Note (Gmail): Gmail's web UI does not render custom IMAP
             keywords as visible labels, so this flag is not visually apparent in Gmail —
             but it is queryable via IMAP and is recorded in the audit log.</span>
           </div>
@@ -226,7 +226,7 @@
           </div>
           <div class="card-body small">
             Copies the message to the configured junk folder
-            (default: <code>[Gmail]/Spam</code>), then deletes and expunges
+            (default: <code>[Gmail]/Spam</code> for Gmail; varies by provider), then deletes and expunges
             the original from INBOX. The copy step is confirmed before
             deletion to prevent message loss on error. The destination is
             set via <code>imap.junk_folder</code> in the config.
@@ -443,11 +443,11 @@
           <tr><th>Variable</th><th>Required</th><th>Description</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>GMAIL_USERNAME</code></td><td>Always</td><td>Full Gmail address being monitored.</td></tr>
-          <tr><td><code>GMAIL_APP_PASSWORD</code></td><td>Always</td>
-              <td>A Gmail App Password (not your account password).
-                  Generate one at <strong>Google Account → Security → 2-Step Verification → App passwords</strong>.
-                  IMAP must be enabled in Gmail settings.</td></tr>
+          <tr><td><code>IMAP_USERNAME</code></td><td>Always</td><td>Full email address / IMAP username for your account.</td></tr>
+          <tr><td><code>IMAP_PASSWORD</code></td><td>Always</td>
+              <td>Password for your IMAP account. For Gmail: generate an App Password at
+                  <strong>Google Account → Security → 2-Step Verification → App passwords</strong>
+                  (not your account password). IMAP must be enabled in your provider's settings.</td></tr>
           <tr><td><code>OPENAI_API_KEY</code></td><td>If provider = openai</td><td>OpenAI API key.</td></tr>
           <tr><td><code>ANTHROPIC_API_KEY</code></td><td>If provider = anthropic</td><td>Anthropic API key.</td></tr>
           <tr><td><code>OLLAMA_API_KEY</code></td><td>If Ollama requires auth</td><td>Optional; most local Ollama instances don't need this.</td></tr>
@@ -487,7 +487,7 @@
     </div>
 
     <!-- ================================================================ -->
-    <h5 class="doc-anchor" id="gmail-notes">Gmail &amp; IMAP Notes</h5>
+    <h5 class="doc-anchor" id="gmail-notes">Gmail-Specific &amp; IMAP Notes</h5>
     <hr class="mt-1">
 
     <div class="accordion accordion-flush mb-3" id="gmailAccordion">
@@ -707,7 +707,7 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
         <a class="nav-link" href="#configuration">Configuration Reference</a>
         <a class="nav-link" href="#credentials">Credentials</a>
         <a class="nav-link" href="#audit">Audit Log</a>
-        <a class="nav-link" href="#gmail-notes">Gmail &amp; IMAP Notes</a>
+        <a class="nav-link" href="#gmail-notes">Gmail-Specific &amp; IMAP Notes</a>
         <a class="nav-link" href="#operations">Operations</a>
         <a class="nav-link nav-sub" href="#manual-test">Manual Test</a>
       </nav>

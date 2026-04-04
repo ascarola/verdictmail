@@ -677,16 +677,15 @@ def whitelist_delete(idx):
 @require_auth
 def credentials():
     if request.method == "POST":
-        username = request.form.get("gmail_username", "").strip()
-        password = request.form.get("gmail_app_password", "").strip()
+        username = request.form.get("imap_username", "").strip()
+        password = request.form.get("imap_password", "").strip()
         anthropic_key = request.form.get("anthropic_api_key", "").strip()
         openai_key = request.form.get("openai_api_key", "").strip()
         ollama_key = request.form.get("ollama_api_key", "").strip()
         urlhaus_key = request.form.get("urlhaus_api_key", "").strip()
         virustotal_key = request.form.get("virustotal_api_key", "").strip()
         try:
-            existing = dotenv_values(str(ENV_PATH)) if ENV_PATH.exists() else {}
-            lines = [f"GMAIL_USERNAME={username}\n", f"GMAIL_APP_PASSWORD={password}\n"]
+            lines = [f"IMAP_USERNAME={username}\n", f"IMAP_PASSWORD={password}\n"]
             for env_var, submitted in [
                 ("ANTHROPIC_API_KEY", anthropic_key),
                 ("OPENAI_API_KEY", openai_key),
@@ -1030,9 +1029,9 @@ def clear_errors():
 # Credential test endpoints  POST /credentials/test/*
 # ---------------------------------------------------------------------------
 
-@app.route("/credentials/test/gmail", methods=["POST"])
+@app.route("/credentials/test/imap", methods=["POST"])
 @require_auth
-def test_gmail():
+def test_imap():
     username = request.json.get("username", "").strip()
     password = request.json.get("password", "").strip()
     cfg = _load_config()
@@ -1050,6 +1049,13 @@ def test_gmail():
         return jsonify(ok=True, msg=f"Connected to {host} as {username}. {len(folders)} folder(s) found.")
     except Exception as exc:
         return jsonify(ok=False, msg=str(exc))
+
+
+@app.route("/credentials/test/gmail", methods=["POST"])
+@require_auth
+def test_gmail_compat():
+    """Backwards-compat redirect — remove in v0.4.0."""
+    return redirect(url_for("test_imap"), code=308)
 
 
 @app.route("/credentials/test/anthropic", methods=["POST"])
@@ -1230,7 +1236,7 @@ def api_status():
     # Configured mailbox from .env
     try:
         env_vals = dotenv_values(str(ENV_PATH)) if ENV_PATH.exists() else {}
-        connected_mailbox = env_vals.get("GMAIL_USERNAME", "—")
+        connected_mailbox = env_vals.get("IMAP_USERNAME") or env_vals.get("GMAIL_USERNAME", "—")
     except Exception:
         pass
 

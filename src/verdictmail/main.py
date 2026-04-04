@@ -236,12 +236,29 @@ def main() -> None:
         # Fall back to environment already set (e.g. systemd EnvironmentFile)
         load_dotenv()
 
-    gmail_user = os.environ.get("GMAIL_USERNAME")
-    gmail_pass = os.environ.get("GMAIL_APP_PASSWORD")
+    imap_user = os.environ.get("IMAP_USERNAME")
+    imap_pass = os.environ.get("IMAP_PASSWORD")
 
-    if not gmail_user or not gmail_pass:
+    # Backwards-compat fallback for v0.2.x installs using the old variable names.
+    # These will be removed in v0.4.0.
+    if not imap_user and os.environ.get("GMAIL_USERNAME"):
         print(
-            "ERROR: GMAIL_USERNAME and GMAIL_APP_PASSWORD must be set in the environment or .env file",
+            "WARNING: GMAIL_USERNAME is deprecated — rename to IMAP_USERNAME in your "
+            ".env file. Fallback support will be removed in v0.4.0.",
+            file=sys.stderr,
+        )
+        imap_user = os.environ.get("GMAIL_USERNAME")
+    if not imap_pass and os.environ.get("GMAIL_APP_PASSWORD"):
+        print(
+            "WARNING: GMAIL_APP_PASSWORD is deprecated — rename to IMAP_PASSWORD in your "
+            ".env file. Fallback support will be removed in v0.4.0.",
+            file=sys.stderr,
+        )
+        imap_pass = os.environ.get("GMAIL_APP_PASSWORD")
+
+    if not imap_user or not imap_pass:
+        print(
+            "ERROR: IMAP_USERNAME and IMAP_PASSWORD must be set in the environment or .env file",
             file=sys.stderr,
         )
         sys.exit(1)
@@ -285,8 +302,8 @@ def main() -> None:
     imap_params = {
         "host": imap_cfg.get("host", "imap.gmail.com"),
         "port": imap_cfg.get("port", 993),
-        "username": gmail_user,
-        "password": gmail_pass,
+        "username": imap_user,
+        "password": imap_pass,
         "folder": imap_cfg.get("folder", "INBOX"),
     }
 

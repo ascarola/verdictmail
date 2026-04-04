@@ -127,12 +127,13 @@ if [[ -f /opt/verdictmail/.env ]]; then
     warn ".env already exists — skipping credential prompts. Edit /opt/verdictmail/.env manually if needed."
 else
     echo
-    echo -e "${BOLD}Enter your Gmail credentials.${RESET}"
-    echo -e "You need a Gmail App Password (not your regular password)."
-    echo -e "Generate one at: Google Account → Security → 2-Step Verification → App passwords\n"
+    echo -e "${BOLD}Enter your IMAP credentials.${RESET}"
+    echo -e "For Gmail: use a Gmail App Password (not your regular password)."
+    echo -e "  Generate one at: Google Account → Security → 2-Step Verification → App passwords"
+    echo -e "For other providers: use your IMAP username and password or app-specific password.\n"
 
-    read -rp "  Gmail address: " GMAIL_USER
-    read -rsp "  Gmail App Password: " GMAIL_PASS
+    read -rp "  IMAP email address: " IMAP_USER
+    read -rsp "  IMAP password / App Password: " IMAP_PASS
     echo
 
     echo
@@ -162,9 +163,9 @@ else
 # VerdictMail — environment variables
 # Never commit this file to version control.
 
-# Gmail credentials
-GMAIL_USERNAME=${GMAIL_USER}
-GMAIL_APP_PASSWORD=${GMAIL_PASS}
+# IMAP credentials
+IMAP_USERNAME=${IMAP_USER}
+IMAP_PASSWORD=${IMAP_PASS}
 
 # AI provider API keys — only the key for your chosen provider is required
 OPENAI_API_KEY=${OPENAI_KEY}
