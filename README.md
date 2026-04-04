@@ -4,11 +4,11 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.2.5-blue)
+![Version](https://img.shields.io/badge/version-0.3.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
-AI-powered email threat analysis daemon for Gmail. Monitors your inbox via IMAP IDLE and runs every incoming message through a multi-stage enrichment and AI analysis pipeline — automatically passing, flagging, or moving suspicious mail to Junk.
+AI-powered email threat analysis daemon. Monitors your inbox via IMAP IDLE and runs every incoming message through a multi-stage enrichment and AI analysis pipeline — automatically passing, flagging, or moving suspicious mail to Junk.
 
 ---
 
@@ -71,7 +71,7 @@ IMAP IDLE (main thread)
 
 - Ubuntu 24.04 LTS (recommended) or 22.04 LTS, running as root for installation
 - Python 3.11+ — Ubuntu 24.04 includes this by default; on 22.04 you may need to install it manually (`apt-get install python3.11 python3.11-venv`)
-- A Gmail account with IMAP enabled (Gmail Settings → See all settings → Forwarding and POP/IMAP → Enable IMAP) and a [Gmail App Password](https://support.google.com/accounts/answer/185833) generated. Other IMAP providers should work too — see [Other IMAP providers](#other-imap-providers) below.
+- An IMAP email account with IMAP access enabled. For Gmail: generate a [Gmail App Password](https://support.google.com/accounts/answer/185833) (Gmail Settings → See all settings → Forwarding and POP/IMAP → Enable IMAP, then Google Account → Security → App passwords). For other providers, see [Other IMAP providers](#other-imap-providers) below.
 - Port 80 free on the host (used by the web UI)
 - One of:
   - An OpenAI API key
@@ -142,7 +142,7 @@ chown verdictmail:verdictmail /opt/verdictmail/.env
 chmod 600 /opt/verdictmail/.env
 ```
 
-Edit `/opt/verdictmail/.env` and fill in your Gmail credentials and AI provider API key. Two optional threat intelligence keys can also be added: `URLHAUS_API_KEY` (free from [abuse.ch](https://abuse.ch/)) for malware URL lookups, and `VIRUSTOTAL_API_KEY` (free from [virustotal.com](https://www.virustotal.com)) for URL and IP reputation checks against 90+ security vendors. Both are silently skipped if not set.
+Edit `/opt/verdictmail/.env` and fill in your IMAP credentials and AI provider API key. Two optional threat intelligence keys can also be added: `URLHAUS_API_KEY` (free from [abuse.ch](https://abuse.ch/)) for malware URL lookups, and `VIRUSTOTAL_API_KEY` (free from [virustotal.com](https://www.virustotal.com)) for URL and IP reputation checks against 90+ security vendors. Both are silently skipped if not set.
 
 ### 6. Configure the application
 
@@ -220,7 +220,7 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 
 VerdictMail is developed and tested against Gmail, but the underlying IMAP code uses only standard RFC-compliant operations (IMAP IDLE, COPY, DELETE, EXPUNGE) and should work with any IMAP server that supports IDLE.
 
-Set `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in `.env` to your account credentials for the provider, then update the IMAP settings in `verdictmail.yaml`:
+Set `IMAP_USERNAME` and `IMAP_PASSWORD` in `.env` to your account credentials, then update the IMAP settings in `verdictmail.yaml`:
 
 | Provider | `imap.host` | `imap.port` | `imap.junk_folder` |
 |----------|-------------|-------------|-------------------|
@@ -229,7 +229,7 @@ Set `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in `.env` to your account credenti
 | Outlook / Hotmail | `outlook.office365.com` | `993` | `Junk` |
 | Apple iCloud | `imap.mail.me.com` | `993` | `Junk` |
 
-> **Note:** Non-Gmail providers are not officially tested. If your provider requires an app-specific password or has two-factor authentication, generate a dedicated app password the same way you would for Gmail.
+> **Note:** Non-Gmail providers are not officially tested. If your provider requires an app-specific password or has two-factor authentication, generate a dedicated app password following your provider's documentation.
 
 ---
 
@@ -241,7 +241,7 @@ Set `GMAIL_USERNAME` and `GMAIL_APP_PASSWORD` in `.env` to your account credenti
 | `flag` | Medium/high threat at sufficient confidence | Sets `$VerdictMail-Suspect` IMAP keyword; message stays in inbox |
 | `move_to_junk` | High/critical threat at high confidence | Copies to the configured junk folder (`imap.junk_folder`, default `[Gmail]/Spam`), deletes original |
 
-> **Note:** Gmail's web UI does not display custom IMAP keywords. The `$VerdictMail-Suspect` flag is visible to standard IMAP clients and is always recorded in the audit log.
+> **Note (Gmail):** Gmail's web UI does not display custom IMAP keywords. The `$VerdictMail-Suspect` flag is visible to standard IMAP clients and is always recorded in the audit log.
 
 ---
 
@@ -268,7 +268,7 @@ The Flask admin interface runs on port 80 alongside the daemon.
 | Audit Log | `/audit` | Paginated, searchable table with full-detail modal |
 | Configuration | `/config` | In-browser YAML editor + AI provider quick-config |
 | Whitelist | `/whitelist` | Add, edit, and delete whitelist rules |
-| Credentials | `/credentials` | Gmail credentials and API key management |
+| Credentials | `/credentials` | IMAP credentials and API key management |
 | Manual Test | `/test` | Dry-run pipeline on a submitted email |
 | Documentation | `/docs` | In-app reference manual |
 | About | `/about` | Version and tech stack info |
@@ -302,8 +302,8 @@ curl http://localhost:11434/api/tags
 ```bash
 python3 -c "
 import imapclient
-c = imapclient.IMAPClient('imap.gmail.com', ssl=True)
-c.login('YOUR_GMAIL_ADDRESS', 'YOUR_APP_PASSWORD')
+c = imapclient.IMAPClient('imap.example.com', ssl=True)  # replace with your IMAP host
+c.login('YOUR_IMAP_USERNAME', 'YOUR_IMAP_PASSWORD')
 print(c.list_folders())
 c.logout()
 "
@@ -342,10 +342,27 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 |---------|-------|
 | Service won't start | `journalctl -u verdictmail -n 50` — look for config or credential errors |
 | AI timeouts | Verify provider connectivity and `ai.timeout_seconds` |
-| IMAP auth failure | Confirm you are using an App Password (not your account password) and that IMAP is enabled in Gmail settings |
+| IMAP auth failure | Confirm credentials are correct (App Password for Gmail; provider-specific password for others) and that IMAP is enabled in your provider's settings |
 | No messages processed | The daemon processes new/unseen messages; use the **Manual Test** page to verify the pipeline works |
 | DNSBL slow | DNS resolution timeouts are 3 s per list; check network connectivity |
 | URLhaus test times out | Verify outbound HTTPS to `urlhaus-api.abuse.ch` is allowed by your firewall. URLhaus lookups are silently skipped if the key is absent, so the daemon will still work without them. |
+
+---
+
+## Upgrading
+
+### v0.3.0 — IMAP credential variable rename
+
+The environment variables have been renamed for provider-agnostic clarity:
+
+| Old (v0.2.x)          | New (v0.3.0+)      |
+|-----------------------|--------------------|
+| `GMAIL_USERNAME`      | `IMAP_USERNAME`    |
+| `GMAIL_APP_PASSWORD`  | `IMAP_PASSWORD`    |
+
+**Action required:** Edit `/opt/verdictmail/.env` and rename the two variables.
+The old names still work in v0.3.0 (a deprecation warning will appear in the log)
+but will be removed in v0.4.0.
 
 ---
 

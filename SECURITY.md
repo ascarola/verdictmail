@@ -6,12 +6,12 @@ VerdictMail is currently in beta. Only the latest release receives security upda
 
 | Version | Supported |
 |---------|-----------|
-| 0.2.x (latest) | ✅ |
-| < 0.2.0 | ❌ |
+| 0.3.x (latest) | ✅ |
+| < 0.3.0 | ❌ |
 
 ## Reporting a Vulnerability
 
-VerdictMail handles live email data, AI provider credentials, and Gmail 
+VerdictMail handles live email data, AI provider credentials, and email provider
 authentication tokens — so responsible disclosure of security issues is 
 important and appreciated.
 
@@ -51,6 +51,6 @@ The following are documented design limitations, not vulnerabilities:
   hour per IP address (HTTP 429 on breach). This provides brute-force
   resistance on a trusted LAN but is not a substitute for TLS or VPN if
   the UI is exposed beyond localhost.
-- Gmail App Passwords are stored in `.env` with 600 permissions. Protect
-  access to the host accordingly.
+- IMAP credentials (`IMAP_USERNAME`, `IMAP_PASSWORD`) are stored in `.env` with
+  600 permissions. Protect access to the host accordingly.
 - AI provider API keys are stored in `.env`. Treat this file as a secret.
