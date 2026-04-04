@@ -43,7 +43,7 @@ class ImapIdleClient:
 
     def connect(self) -> None:
         """Establish an authenticated IMAP connection and select the folder."""
-        logger.info("Connecting to %s:%d as %s", self.host, self.port, self.username)
+        logger.info("Connecting to IMAP server")
         # timeout=60 sets a 60-second socket-level timeout on all send/recv
         # operations so that idle_done() and other blocking calls cannot hang
         # indefinitely when the TCP connection is dead (e.g. after a network
