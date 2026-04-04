@@ -1042,20 +1042,14 @@ def test_imap():
         return jsonify(ok=False, msg="Username and password are required.")
     try:
         from imapclient import IMAPClient
-        from imapclient.exceptions import IMAPClientError
-        import socket, ssl as _ssl
         client = IMAPClient(host, port=port, ssl=True, use_uid=True)
         client.login(username, password)
         folders = client.list_folders()
         client.logout()
         return jsonify(ok=True, msg=f"Connected to {host} as {username}. {len(folders)} folder(s) found.")
-    except (IMAPClientError, OSError, socket.error, _ssl.SSLError) as exc:
-        # These exception types produce user-meaningful messages (auth failure,
-        # connection refused, bad certificate, etc.) with no internal detail.
-        return jsonify(ok=False, msg=str(exc))
     except Exception:
-        app.logger.exception("Unexpected error during IMAP connection test")
-        return jsonify(ok=False, msg="An unexpected error occurred. Check the server log for details.")
+        app.logger.exception("IMAP connection test failed")
+        return jsonify(ok=False, msg="Connection failed. Check your credentials and IMAP settings, then check the server log for details.")
 
 
 @app.route("/credentials/test/gmail", methods=["POST"])
