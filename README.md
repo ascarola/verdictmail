@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.1-blue)
+![Version](https://img.shields.io/badge/version-0.3.2-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -361,6 +361,21 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.3.2 — Fast shutdown fix
+
+Non-breaking bug fix. No action required other than pulling and restarting:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail
+```
+
+Fixes a 150-second forced shutdown delay that occurred when the daemon was
+restarted while in exponential backoff (e.g. after importing a backup ZIP on
+a fresh install with dummy credentials). Shutdown is now instant.
+
+---
 
 ### v0.3.1 — Backup & restore
 
