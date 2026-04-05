@@ -318,6 +318,13 @@ c.logout()
 PYTHONPATH=src /opt/verdictmail/venv/bin/python -m pytest tests/ -v
 ```
 
+The test suite covers:
+
+| File | What it tests |
+|------|---------------|
+| `test_message_parser.py` | RFC 2822 parsing, header extraction, URL extraction, DKIM signature parsing |
+| `test_decision_engine.py` | All 7 decision rules, boundary conditions at both thresholds, threshold configuration variants, case insensitivity |
+
 ### Watch live logs
 
 ```bash
