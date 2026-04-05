@@ -324,6 +324,7 @@ The test suite covers:
 |------|---------------|
 | `test_message_parser.py` | RFC 2822 parsing, header extraction, URL extraction, DKIM signature parsing |
 | `test_decision_engine.py` | All 7 decision rules, boundary conditions at both thresholds, threshold configuration variants, case insensitivity |
+| `test_ai_analyzer.py` | JSON extraction from plain/fenced/embedded text, response schema validation, all `_build_user_prompt` sections and conditional blocks (URLhaus, VirusTotal, DKIM alignment, PBL note, body truncation) |
 
 ### Watch live logs
 
