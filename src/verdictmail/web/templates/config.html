@@ -174,6 +174,56 @@
     </button>
   </form>
 </div>
+<!-- Backup & Restore -->
+<div class="card mb-4" style="max-width:620px">
+  <div class="card-header"><i class="bi bi-archive me-1"></i> Backup &amp; Restore</div>
+  <div class="card-body">
+
+    <p class="small text-muted mb-2">Export a copy of your configuration for safekeeping or migration to a new server.</p>
+    <div class="d-flex gap-2 mb-2">
+      <a href="{{ url_for('config_export') }}" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-download me-1"></i> Export Config
+      </a>
+      <a href="{{ url_for('config_export_full') }}" class="btn btn-sm btn-outline-warning"
+         onclick="return confirm('This download contains your IMAP credentials and API keys in plaintext.\n\nStore the file securely — do not share it or commit it to version control.\n\nContinue?')">
+        <i class="bi bi-file-zip me-1"></i> Export Full Backup
+      </a>
+    </div>
+    <div class="text-muted mb-3" style="font-size:.75rem">
+      <strong>Export Config</strong> — downloads <code>verdictmail.yaml</code> only (no credentials).<br>
+      <strong>Export Full Backup</strong> — downloads a ZIP of <code>verdictmail.yaml</code> + <code>.env</code>.
+      <span class="text-warning">Contains credentials and API keys — store securely.</span>
+    </div>
+
+    <hr class="my-3">
+
+    <p class="small text-muted mb-2">Restore a previously exported <code>verdictmail.yaml</code>. The current configuration will be replaced immediately.</p>
+    <form method="post" action="{{ url_for('config_import') }}" enctype="multipart/form-data" class="mb-3">
+      <div class="input-group input-group-sm">
+        <input type="file" name="config_file" class="form-control form-control-sm" accept=".yaml,.yml">
+        <button type="submit" class="btn btn-sm btn-outline-secondary"
+                onclick="return confirm('Replace the current configuration with the uploaded file?\n\nRestart the daemon after importing to apply changes.')">
+          <i class="bi bi-upload me-1"></i> Import Config
+        </button>
+      </div>
+      <div class="form-text">YAML only. The web UI password hash in the file will also be restored.</div>
+    </form>
+
+    <p class="small text-muted mb-2">Restore a full backup ZIP (restores both <code>verdictmail.yaml</code> and <code>.env</code> credentials).</p>
+    <form method="post" action="{{ url_for('config_import_full') }}" enctype="multipart/form-data">
+      <div class="input-group input-group-sm">
+        <input type="file" name="backup_file" class="form-control form-control-sm" accept=".zip">
+        <button type="submit" class="btn btn-sm btn-outline-warning"
+                onclick="return confirm('This will replace both verdictmail.yaml and .env with the contents of the ZIP.\n\nRestart the daemon after importing to apply changes.')">
+          <i class="bi bi-upload me-1"></i> Import Full Backup
+        </button>
+      </div>
+      <div class="form-text"><span class="text-warning">Replaces credentials.</span> Restart the daemon after importing.</div>
+    </form>
+
+  </div>
+</div>
+
 <!-- Danger zone -->
 <div class="card mb-4 border-danger" style="max-width:620px">
   <div class="card-header text-danger"><i class="bi bi-exclamation-triangle me-1"></i> Danger Zone</div>

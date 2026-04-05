@@ -37,7 +37,7 @@
        style="overflow-y:auto; max-height:calc(100vh - 72px)">
 
     <h4 class="mb-1"><i class="bi bi-book me-2"></i>Documentation</h4>
-    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.3.0</p>
+    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.3.1</p>
 
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="overview">Overview</h5>
@@ -458,6 +458,50 @@
     </div>
 
     <!-- ================================================================ -->
+    <h5 class="doc-anchor" id="backup">Backup &amp; Restore</h5>
+    <hr class="mt-1">
+    <p>
+      The <a href="{{ url_for('config_editor') }}" class="text-info">Configuration</a> page
+      includes a <strong>Backup &amp; Restore</strong> card for exporting and restoring your
+      configuration without command-line access.
+    </p>
+    <div class="table-responsive mb-3">
+      <table class="table table-dark table-sm table-bordered small">
+        <thead class="table-secondary">
+          <tr><th>Action</th><th>What it does</th><th>Contains credentials?</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Export Config</strong></td>
+            <td>Downloads <code>verdictmail.yaml</code> — all settings, thresholds, whitelist rules, and AI config.</td>
+            <td>No — safe to store anywhere</td>
+          </tr>
+          <tr>
+            <td><strong>Export Full Backup</strong></td>
+            <td>Downloads a dated ZIP containing both <code>verdictmail.yaml</code> and <code>.env</code>.</td>
+            <td><span class="text-warning">Yes</span> — store securely; do not share or commit to version control</td>
+          </tr>
+          <tr>
+            <td><strong>Import Config</strong></td>
+            <td>Upload a <code>verdictmail.yaml</code> to replace the live configuration. Restart the daemon to apply.</td>
+            <td>—</td>
+          </tr>
+          <tr>
+            <td><strong>Import Full Backup</strong></td>
+            <td>Upload a backup ZIP to restore both <code>verdictmail.yaml</code> and <code>.env</code> in one step. Restart the daemon to apply.</td>
+            <td>—</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="alert alert-warning small py-2">
+      <i class="bi bi-exclamation-triangle me-1"></i>
+      <strong>Note:</strong> Importing a backup restores the web UI password hash stored inside
+      <code>verdictmail.yaml</code>. After a full restore you will need to log in with the
+      password that was active when the backup was taken.
+    </div>
+
+    <!-- ================================================================ -->
     <h5 class="doc-anchor" id="audit">Audit Log</h5>
     <hr class="mt-1">
     <p>
@@ -706,6 +750,7 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
         <a class="nav-link" href="#whitelist">Whitelist</a>
         <a class="nav-link" href="#configuration">Configuration Reference</a>
         <a class="nav-link" href="#credentials">Credentials</a>
+        <a class="nav-link" href="#backup">Backup &amp; Restore</a>
         <a class="nav-link" href="#audit">Audit Log</a>
         <a class="nav-link" href="#gmail-notes">Gmail-Specific &amp; IMAP Notes</a>
         <a class="nav-link" href="#operations">Operations</a>

@@ -6,6 +6,10 @@ Routes:
   GET  /audit                    → paginated + filtered audit log
   GET  /config                   → config editor
   POST /config                   → save YAML
+  GET  /config/export            → download verdictmail.yaml
+  GET  /config/export/full       → download ZIP (yaml + .env, contains credentials)
+  POST /config/import            → upload and replace verdictmail.yaml
+  POST /config/import/full       → upload backup ZIP and restore yaml + .env
   GET  /credentials              → credentials editor
   POST /credentials              → save .env
   POST /credentials/change-password → change web UI password
@@ -23,6 +27,7 @@ Routes:
 from __future__ import annotations
 
 import email.mime.text
+import io
 import json
 import os
 import signal
@@ -30,6 +35,7 @@ import sqlite3
 import subprocess
 import sys
 import tempfile
+import zipfile
 from datetime import date, datetime, timedelta, timezone
 from functools import wraps
 from pathlib import Path
@@ -40,7 +46,7 @@ import yaml
 from dotenv import dotenv_values
 from flask import (
     Flask, flash, jsonify, redirect, render_template,
-    request, session, url_for,
+    request, send_file, session, url_for,
 )
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
@@ -997,6 +1003,116 @@ def clear_logs():
         flash("Audit log cleared — all records deleted.", "success")
     except Exception as exc:
         flash(f"Error clearing logs: {exc}", "danger")
+    return redirect(url_for("config_editor"))
+
+
+# ---------------------------------------------------------------------------
+# Config export / import
+#   GET  /config/export        — download verdictmail.yaml (no credentials)
+#   GET  /config/export/full   — download ZIP of yaml + .env (includes credentials)
+#   POST /config/import        — upload and replace verdictmail.yaml
+#   POST /config/import/full   — upload ZIP and restore both yaml + .env
+# ---------------------------------------------------------------------------
+
+@app.route("/config/export")
+@require_auth
+def config_export():
+    """Download verdictmail.yaml (no credentials)."""
+    return send_file(
+        CONFIG_PATH,
+        as_attachment=True,
+        download_name="verdictmail.yaml",
+        mimetype="text/yaml",
+    )
+
+
+@app.route("/config/export/full")
+@require_auth
+def config_export_full():
+    """Download a ZIP containing verdictmail.yaml and .env (includes credentials)."""
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        if CONFIG_PATH.exists():
+            zf.write(CONFIG_PATH, "verdictmail.yaml")
+        if ENV_PATH.exists():
+            zf.write(ENV_PATH, ".env")
+    buf.seek(0)
+    filename = f"verdictmail-backup-{date.today().isoformat()}.zip"
+    return send_file(
+        buf,
+        as_attachment=True,
+        download_name=filename,
+        mimetype="application/zip",
+    )
+
+
+@app.route("/config/import", methods=["POST"])
+@require_auth
+def config_import():
+    """Accept a verdictmail.yaml upload and replace the live config."""
+    uploaded = request.files.get("config_file")
+    if not uploaded or not uploaded.filename:
+        flash("No file selected.", "danger")
+        return redirect(url_for("config_editor"))
+    try:
+        raw = uploaded.read().decode("utf-8")
+        parsed = yaml.safe_load(raw)
+        if not isinstance(parsed, dict):
+            raise ValueError("YAML must be a mapping (dict), not a list or scalar.")
+        _save_config(parsed)
+        flash("Configuration imported successfully. Restart the daemon to apply.", "success")
+    except Exception as exc:
+        flash(f"Import failed: {exc}", "danger")
+    return redirect(url_for("config_editor"))
+
+
+@app.route("/config/import/full", methods=["POST"])
+@require_auth
+def config_import_full():
+    """Accept a backup ZIP and restore verdictmail.yaml and/or .env from it."""
+    uploaded = request.files.get("backup_file")
+    if not uploaded or not uploaded.filename:
+        flash("No file selected.", "danger")
+        return redirect(url_for("config_editor"))
+    try:
+        buf = io.BytesIO(uploaded.read())
+        if not zipfile.is_zipfile(buf):
+            raise ValueError("File is not a valid ZIP archive.")
+        buf.seek(0)
+        restored = []
+        with zipfile.ZipFile(buf, "r") as zf:
+            names = zf.namelist()
+            if "verdictmail.yaml" not in names and ".env" not in names:
+                raise ValueError("ZIP does not contain verdictmail.yaml or .env — is this a VerdictMail backup?")
+            if "verdictmail.yaml" in names:
+                raw_yaml = zf.read("verdictmail.yaml").decode("utf-8")
+                parsed = yaml.safe_load(raw_yaml)
+                if not isinstance(parsed, dict):
+                    raise ValueError("verdictmail.yaml in ZIP is not a valid YAML mapping.")
+                _save_config(parsed)
+                restored.append("verdictmail.yaml")
+            if ".env" in names:
+                env_bytes = zf.read(".env")
+                fd, tmp = tempfile.mkstemp(dir=ENV_PATH.parent, suffix=".tmp")
+                try:
+                    with os.fdopen(fd, "wb") as f:
+                        f.write(env_bytes)
+                    os.chmod(tmp, 0o600)
+                    os.replace(tmp, ENV_PATH)
+                except Exception:
+                    try:
+                        os.unlink(tmp)
+                    except OSError:
+                        pass
+                    raise
+                restored.append(".env")
+        flash(
+            f"Full backup restored: {', '.join(restored)}. "
+            "Restart the daemon to apply.",
+            "success",
+        )
+    except Exception as exc:
+        flash(f"Import failed: {exc}", "danger")
     return redirect(url_for("config_editor"))
 
 

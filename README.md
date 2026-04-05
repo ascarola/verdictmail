@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.0-blue)
+![Version](https://img.shields.io/badge/version-0.3.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -23,6 +23,7 @@ AI-powered email threat analysis daemon. Monitors your inbox via IMAP IDLE and r
 - **Whitelist**: exempt trusted senders from analysis by email, domain, or subject pattern
 - **Web UI**: Flask admin interface — dashboard, audit log, configuration, whitelist, credentials, manual test, documentation
 - **Audit log**: full SQLite record of every decision including signals, reasoning, and processing time
+- **Backup & restore**: export configuration (YAML only) or a full backup ZIP (YAML + credentials) from the web UI; restore via ZIP upload with a single click
 
 ---
 
@@ -271,6 +272,8 @@ The Flask admin interface runs on port 80 alongside the daemon.
 | Credentials | `/credentials` | IMAP credentials and API key management |
 | Manual Test | `/test` | Dry-run pipeline on a submitted email |
 | Documentation | `/docs` | In-app reference manual |
+| Configuration (Backup) | `/config/export` | Download `verdictmail.yaml` |
+| Configuration (Full Backup) | `/config/export/full` | Download ZIP of `verdictmail.yaml` + `.env` |
 | About | `/about` | Version and tech stack info |
 
 A web UI password is set on first visit. The password hash is stored in `verdictmail.yaml`; the plaintext password is never stored.
@@ -358,6 +361,18 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.3.1 — Backup & restore
+
+Non-breaking feature addition. No action required when upgrading from v0.3.0.
+
+A **Backup & Restore** card is now available on the Configuration page:
+- **Export Config** — downloads `verdictmail.yaml` (no credentials)
+- **Export Full Backup** — downloads a dated ZIP of `verdictmail.yaml` + `.env` (contains credentials — store securely)
+- **Import Config** — uploads a `verdictmail.yaml` to replace the live config
+- **Import Full Backup** — uploads a backup ZIP to restore both `verdictmail.yaml` and `.env` in one step
+
+---
 
 ### v0.3.0 — IMAP credential variable rename
 
