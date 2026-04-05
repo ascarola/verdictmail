@@ -28,6 +28,7 @@ class ImapIdleClient:
         username: str,
         password: str,
         folder: str = "INBOX",
+        shutdown_event: Optional[threading.Event] = None,
     ):
         self.host = host
         self.port = port
@@ -36,6 +37,8 @@ class ImapIdleClient:
         self.folder = folder
         self._client: Optional[IMAPClient] = None
         self._backoff_index = 0
+        # Used to interrupt backoff sleeps immediately on SIGTERM
+        self._shutdown_event = shutdown_event or threading.Event()
 
     # ------------------------------------------------------------------
     # Connect / reconnect
@@ -56,12 +59,19 @@ class ImapIdleClient:
         logger.info("IMAP connected and folder '%s' selected", self.folder)
 
     def reconnect_with_backoff(self) -> None:
-        """Disconnect (if connected) and reconnect with exponential backoff + jitter."""
+        """Disconnect (if connected) and reconnect with exponential backoff + jitter.
+
+        Each sleep is interruptible: if the shutdown event is set the method
+        returns immediately so the caller can exit cleanly without waiting out
+        the full backoff delay.
+        """
         self._disconnect_quietly()
         delay = _BACKOFF_STEPS[min(self._backoff_index, len(_BACKOFF_STEPS) - 1)]
         delay += random.uniform(0, delay * 0.25)  # up to 25% jitter
         logger.warning("Reconnecting in %.1fs (attempt #%d)...", delay, self._backoff_index + 1)
-        time.sleep(delay)
+        self._shutdown_event.wait(timeout=delay)
+        if self._shutdown_event.is_set():
+            return
         self._backoff_index = min(self._backoff_index + 1, len(_BACKOFF_STEPS) - 1)
 
         while True:
@@ -72,7 +82,9 @@ class ImapIdleClient:
                 delay = _BACKOFF_STEPS[min(self._backoff_index, len(_BACKOFF_STEPS) - 1)]
                 delay += random.uniform(0, delay * 0.25)
                 logger.error("Reconnect failed: %s — retrying in %.1fs", exc, delay)
-                time.sleep(delay)
+                self._shutdown_event.wait(timeout=delay)
+                if self._shutdown_event.is_set():
+                    return
                 self._backoff_index = min(self._backoff_index + 1, len(_BACKOFF_STEPS) - 1)
 
     def _disconnect_quietly(self) -> None:

@@ -286,6 +286,11 @@ def main() -> None:
     # -----------------------------------------------------------------------
     # 5. Build components
     # -----------------------------------------------------------------------
+
+    # Create shutdown_event here so it can be passed into ImapIdleClient,
+    # allowing backoff sleeps to be interrupted immediately on SIGTERM.
+    shutdown_event = threading.Event()
+
     imap_cfg = cfg.get("imap", {})
     # Support new "ai:" section; fall back to legacy "ollama:" section
     ai_cfg = cfg.get("ai", cfg.get("ollama", {}))
@@ -313,6 +318,7 @@ def main() -> None:
         username=imap_params["username"],
         password=imap_params["password"],
         folder=imap_params["folder"],
+        shutdown_event=shutdown_event,
     )
 
     enrichment_pipeline = EnrichmentPipeline(
@@ -360,7 +366,6 @@ def main() -> None:
     # -----------------------------------------------------------------------
     # 6. Signal handling for graceful shutdown
     # -----------------------------------------------------------------------
-    shutdown_event = threading.Event()
     inflight_uids: set[int] = set()
     done_uids: set[int] = set()      # UIDs fully processed this session
     inflight_lock = threading.Lock()
