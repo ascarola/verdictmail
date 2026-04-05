@@ -13,7 +13,7 @@ Environment=PYTHONPATH=/opt/verdictmail/src
 ExecStart=/opt/verdictmail/venv/bin/python -m verdictmail.main
 Restart=always
 RestartSec=10
-TimeoutStopSec=150
+TimeoutStopSec=30
 StandardOutput=journal
 StandardError=journal
 SyslogIdentifier=verdictmail
