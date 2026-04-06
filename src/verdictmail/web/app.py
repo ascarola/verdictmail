@@ -456,10 +456,17 @@ def audit():
         ).fetchone()[0]
 
         offset = (page - 1) * per_page
-        rows = conn.execute(
+        raw_rows = conn.execute(
             f"SELECT * FROM audit_log {where_sql} ORDER BY id DESC LIMIT ? OFFSET ?",
             params + [per_page, offset],
         ).fetchall()
+        # Convert to dicts and ensure enrichment key always exists (None for
+        # rows recorded before v0.3.3 when the column did not yet exist).
+        rows = []
+        for r in raw_rows:
+            d = dict(r)
+            d.setdefault("enrichment", None)
+            rows.append(d)
         conn.close()
     except sqlite3.OperationalError:
         pass

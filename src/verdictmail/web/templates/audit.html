@@ -82,7 +82,8 @@
               data-model="{{ r['model_name'] or '' }}"
               data-ms="{{ r['processing_ms'] or '' }}"
               data-signals="{{ r['signals'] or '' }}"
-              data-raw="{{ r['raw_ai_response'] or '' }}">
+              data-raw="{{ r['raw_ai_response'] or '' }}"
+              data-enrichment="{{ r['enrichment'] or '' }}">
               Detail
             </button>
           </td>
@@ -138,8 +139,18 @@
         <div class="accordion" id="signalsAccordion">
           <div class="accordion-item">
             <h2 class="accordion-header">
+              <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#enrichmentCollapse">
+                Enrichment
+              </button>
+            </h2>
+            <div id="enrichmentCollapse" class="accordion-collapse collapse show">
+              <div class="accordion-body small" id="m-enrichment"></div>
+            </div>
+          </div>
+          <div class="accordion-item">
+            <h2 class="accordion-header">
               <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#signalsCollapse">
-                Signals JSON
+                AI Signals
               </button>
             </h2>
             <div id="signalsCollapse" class="accordion-collapse collapse">
@@ -214,6 +225,86 @@
 
 {% block extra_scripts %}
 <script>
+// HTML-escape helper — used when injecting user-derived data via innerHTML
+function _esc(s) {
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function badge(cls, text) {
+  return `<span class="badge ${cls} me-1">${_esc(text)}</span>`;
+}
+
+function renderEnrichment(raw) {
+  if (!raw) {
+    return '<span class="text-muted">Not available — recorded before v0.3.3.</span>';
+  }
+  let e;
+  try { e = JSON.parse(raw); } catch { return '<span class="text-muted">Could not parse enrichment data.</span>'; }
+
+  // Badges row
+  let badges = '';
+  badges += e.spf_valid   ? badge('bg-success', 'SPF ✓')  : badge('bg-danger', 'SPF ✗');
+  badges += e.dkim_valid  ? badge('bg-success', 'DKIM ✓') : badge('bg-danger', 'DKIM ✗');
+  badges += e.dmarc_valid ? badge('bg-success', 'DMARC ✓'): badge('bg-danger', 'DMARC ✗');
+  if (e.display_name_spoofing) badges += badge('bg-danger', 'Spoofing Detected');
+  if (e.dkim_domain_mismatch === true)  badges += badge('bg-warning text-dark', 'DKIM Misaligned');
+  if (e.dkim_domain_mismatch === false) badges += badge('bg-success', 'DKIM Aligned');
+  if (e.new_domain) badges += badge('bg-warning text-dark', 'New Domain');
+  if (e.dnsbl_listed && e.dnsbl_pbl_only) badges += badge('bg-warning text-dark', 'DNSBL: PBL only (ISP policy)');
+  else if (e.dnsbl_listed)                badges += badge('bg-danger', 'DNSBL Listed (SBL/XBL)');
+  if (e.urlhaus_checked) {
+    badges += (e.urlhaus_hits && e.urlhaus_hits.length)
+      ? badge('bg-danger', 'URLhaus: Malware URL Detected')
+      : badge('bg-success', 'URLhaus ✓');
+  } else {
+    badges += badge('bg-secondary opacity-50', 'URLhaus (not configured)');
+  }
+  if (e.virustotal_checked) {
+    badges += (e.virustotal_hits && e.virustotal_hits.length)
+      ? badge('bg-danger', 'VirusTotal: Threat Detected')
+      : badge('bg-success', 'VirusTotal ✓');
+  } else {
+    badges += badge('bg-secondary opacity-50', 'VirusTotal (not configured)');
+  }
+
+  // Detail rows
+  let rows = '';
+  rows += `<dt class="col-sm-4">Domain age</dt><dd class="col-sm-8">${e.domain_age_days != null ? _esc(e.domain_age_days) + ' days' : 'unknown'}</dd>`;
+  if (e.dkim_domains && e.dkim_domains.length) {
+    const mismatch = e.dkim_domain_mismatch ? ' <span class="text-warning">(none match From domain)</span>' : '';
+    rows += `<dt class="col-sm-4">DKIM signing domain(s)</dt><dd class="col-sm-8">${_esc(e.dkim_domains.join(', '))}${mismatch}</dd>`;
+  }
+  if (e.dnsbl_hits && e.dnsbl_hits.length) {
+    rows += `<dt class="col-sm-4">DNSBL hits</dt><dd class="col-sm-8">${_esc(e.dnsbl_hits.join(', '))}</dd>`;
+  }
+  if (e.expanded_urls && e.expanded_urls.length) {
+    const items = e.expanded_urls.map(u => {
+      let li = `<code>${_esc(u.original)}</code>`;
+      if (u.is_shortener) li += ' <span class="badge bg-warning text-dark">shortener</span>';
+      if (u.original !== u.final) li += ` → <code>${_esc(u.final)}</code>`;
+      return `<li>${li}</li>`;
+    }).join('');
+    rows += `<dt class="col-sm-4">Expanded URLs</dt><dd class="col-sm-8"><ul class="mb-0 ps-3">${items}</ul></dd>`;
+  }
+  if (e.urlhaus_hits && e.urlhaus_hits.length) {
+    const items = e.urlhaus_hits.map(h => `<li class="text-danger"><code>${_esc(h)}</code></li>`).join('');
+    rows += `<dt class="col-sm-4 text-danger">URLhaus hits</dt><dd class="col-sm-8"><ul class="mb-0 ps-3">${items}</ul></dd>`;
+  }
+  if (e.virustotal_hits && e.virustotal_hits.length) {
+    const items = e.virustotal_hits.map(h => `<li class="text-danger"><code>${_esc(h)}</code></li>`).join('');
+    rows += `<dt class="col-sm-4 text-danger">VirusTotal hits</dt><dd class="col-sm-8"><ul class="mb-0 ps-3">${items}</ul></dd>`;
+  }
+  if (e.error_notes && e.error_notes.length) {
+    rows += `<dt class="col-sm-4">Notes</dt><dd class="col-sm-8 text-muted">${_esc(e.error_notes.join('; '))}</dd>`;
+  }
+
+  return `<div class="mb-2">${badges}</div><dl class="row mb-0">${rows}</dl>`;
+}
+
 // Populate detail modal from row data
 document.getElementById('detailModal').addEventListener('show.bs.modal', function(e) {
   const btn = e.relatedTarget;
@@ -228,6 +319,7 @@ document.getElementById('detailModal').addEventListener('show.bs.modal', functio
   document.getElementById('m-reasoning').textContent   = btn.dataset.reasoning;
   document.getElementById('m-model').textContent       = btn.dataset.model;
   document.getElementById('m-ms').textContent          = btn.dataset.ms;
+  document.getElementById('m-enrichment').innerHTML    = renderEnrichment(btn.dataset.enrichment);
   try { document.getElementById('m-signals').textContent = JSON.stringify(JSON.parse(btn.dataset.signals), null, 2); }
   catch { document.getElementById('m-signals').textContent = btn.dataset.signals; }
   try { document.getElementById('m-raw').textContent = JSON.stringify(JSON.parse(btn.dataset.raw), null, 2); }

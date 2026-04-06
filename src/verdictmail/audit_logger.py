@@ -66,9 +66,17 @@ CREATE TABLE IF NOT EXISTS audit_log (
     model_name       TEXT,
     action_taken     TEXT,
     processing_ms    INTEGER,
-    raw_ai_response  TEXT
+    raw_ai_response  TEXT,
+    enrichment       TEXT
 );
 """
+
+# Migrations: list of (column_name, ALTER TABLE statement) pairs.
+# Each is attempted once; SQLite raises OperationalError if the column already
+# exists, which we silently ignore. Safe to run on every startup.
+_MIGRATIONS = [
+    ("enrichment", "ALTER TABLE audit_log ADD COLUMN enrichment TEXT"),
+]
 
 
 def init_db(db_path: str) -> sqlite3.Connection:
@@ -78,6 +86,11 @@ def init_db(db_path: str) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path, check_same_thread=False)
     conn.execute("PRAGMA journal_mode=WAL;")
     conn.execute(CREATE_TABLE_SQL)
+    for _col, sql in _MIGRATIONS:
+        try:
+            conn.execute(sql)
+        except sqlite3.OperationalError:
+            pass  # column already exists
     conn.commit()
     return conn
 
@@ -88,17 +101,17 @@ def log_decision(conn: sqlite3.Connection, record: dict[str, Any]) -> None:
     Expected keys in *record*:
         message_id, timestamp, sender, subject, threat_level, threat_types,
         confidence, signals, reasoning, model_name, action_taken,
-        processing_ms, raw_ai_response
+        processing_ms, raw_ai_response, enrichment
     """
     sql = """
     INSERT INTO audit_log
         (message_id, timestamp, sender, subject, threat_level, threat_types,
          confidence, signals, reasoning, model_name, action_taken,
-         processing_ms, raw_ai_response)
+         processing_ms, raw_ai_response, enrichment)
     VALUES
         (:message_id, :timestamp, :sender, :subject, :threat_level, :threat_types,
          :confidence, :signals, :reasoning, :model_name, :action_taken,
-         :processing_ms, :raw_ai_response)
+         :processing_ms, :raw_ai_response, :enrichment)
     """
     # Serialize list/dict fields to JSON text
     row = dict(record)
@@ -106,6 +119,9 @@ def log_decision(conn: sqlite3.Connection, record: dict[str, Any]) -> None:
         row["threat_types"] = json.dumps(row["threat_types"])
     if isinstance(row.get("signals"), (list, dict)):
         row["signals"] = json.dumps(row["signals"])
+    if isinstance(row.get("enrichment"), dict):
+        row["enrichment"] = json.dumps(row["enrichment"])
+    row.setdefault("enrichment", None)
 
     with conn:
         conn.execute(sql, row)

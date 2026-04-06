@@ -37,6 +37,38 @@ def _load_config(config_path: str) -> dict[str, Any]:
 
 
 # ---------------------------------------------------------------------------
+# Enrichment serializer
+# ---------------------------------------------------------------------------
+
+def _serialize_enrichment(enrichment) -> dict | None:
+    """Convert an EnrichmentResult to a JSON-serializable dict for the audit log."""
+    if enrichment is None:
+        return None
+    return {
+        "spf_valid":             enrichment.spf_valid,
+        "dkim_valid":            enrichment.dkim_valid,
+        "dmarc_valid":           enrichment.dmarc_valid,
+        "display_name_spoofing": enrichment.display_name_spoofing,
+        "new_domain":            enrichment.new_domain,
+        "domain_age_days":       enrichment.domain_age_days,
+        "dnsbl_listed":          enrichment.dnsbl_listed,
+        "dnsbl_pbl_only":        enrichment.dnsbl_pbl_only,
+        "dnsbl_hits":            enrichment.dnsbl_hits,
+        "urlhaus_checked":       enrichment.urlhaus_checked,
+        "urlhaus_hits":          enrichment.urlhaus_hits,
+        "virustotal_checked":    enrichment.virustotal_checked,
+        "virustotal_hits":       enrichment.virustotal_hits,
+        "dkim_domains":          enrichment.dkim_domains,
+        "dkim_domain_mismatch":  enrichment.dkim_domain_mismatch,
+        "expanded_urls": [
+            {"original": eu.original, "final": eu.final, "is_shortener": eu.is_shortener}
+            for eu in enrichment.expanded_urls
+        ],
+        "error_notes": enrichment.error_notes,
+    }
+
+
+# ---------------------------------------------------------------------------
 # Whitelist helper
 # ---------------------------------------------------------------------------
 
@@ -96,6 +128,7 @@ def _process_message(
     action_taken = "error"
     ai_result = None
     parsed = None
+    enrichment = None
     worker_client = None
 
     try:
@@ -139,7 +172,7 @@ def _process_message(
             model_name = "whitelist"
         else:
             # 4. Enrich
-            enrichment = enrichment_pipeline.run(raw_bytes, parsed)
+            enrichment = enrichment_pipeline.run(raw_bytes, parsed)  # stored for audit log
 
             # 5. AI analysis
             ai_result = ai_analyzer.analyze(parsed, enrichment)
@@ -188,6 +221,7 @@ def _process_message(
             "action_taken": action_taken,
             "processing_ms": elapsed_ms,
             "raw_ai_response": ai_result.raw_response if ai_result else "",
+            "enrichment": _serialize_enrichment(enrichment),
         }
         try:
             log_decision(db_conn, record)

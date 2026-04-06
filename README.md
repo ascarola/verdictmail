@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.2-blue)
+![Version](https://img.shields.io/badge/version-0.3.3-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -22,7 +22,7 @@ AI-powered email threat analysis daemon. Monitors your inbox via IMAP IDLE and r
 - **Aggressiveness presets**: one-click sensitivity tuning (Conservative / Default / Aggressive / Very Aggressive) with fine-grained YAML override
 - **Whitelist**: exempt trusted senders from analysis by email, domain, or subject pattern
 - **Web UI**: Flask admin interface — dashboard, audit log, configuration, whitelist, credentials, manual test, documentation
-- **Audit log**: full SQLite record of every decision including signals, reasoning, and processing time
+- **Audit log**: full SQLite record of every decision including enrichment results (SPF, DKIM, DMARC, DNSBL, URLhaus, VirusTotal), AI signals, reasoning, and processing time — viewable per-message from the Audit Log page
 - **Backup & restore**: export configuration (YAML only) or a full backup ZIP (YAML + credentials) from the web UI; restore via ZIP upload with a single click
 
 ---
@@ -361,6 +361,19 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.3.3 — Enrichment data in audit log
+
+Non-breaking feature addition. The database schema is migrated automatically on daemon startup — no manual steps required.
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+The audit log Detail modal now shows a full **Enrichment** panel for every processed message: SPF/DKIM/DMARC pass/fail badges, display-name spoofing detection, domain age, DNSBL classification (including PBL-only distinction), URLhaus and VirusTotal results, DKIM alignment, and expanded URLs. A new `enrichment` column is added to the SQLite `audit_log` table. Records written before v0.3.3 show *"Not available — recorded before v0.3.3."*
+
+---
 
 ### v0.3.2 — Fast shutdown fix
 

@@ -37,7 +37,7 @@
        style="overflow-y:auto; max-height:calc(100vh - 72px)">
 
     <h4 class="mb-1"><i class="bi bi-book me-2"></i>Documentation</h4>
-    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.3.2</p>
+    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.3.3</p>
 
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="overview">Overview</h5>
@@ -525,7 +525,8 @@
           <tr><td><code>reasoning</code></td><td>AI's explanation. For whitelisted messages: <em>"Whitelisted: &lt;comment&gt;"</em>.</td></tr>
           <tr><td><code>model_name</code></td><td>AI model used (e.g. <code>gpt-4o-mini</code>). Set to <code>"whitelist"</code> for whitelisted messages.</td></tr>
           <tr><td><code>processing_ms</code></td><td>Total wall-clock time for the pipeline in milliseconds.</td></tr>
-          <tr><td><code>signals</code></td><td>JSON object of all enrichment signals (SPF, DKIM, DMARC, DNSBL hits, domain age, etc.).</td></tr>
+          <tr><td><code>signals</code></td><td>JSON object of AI-identified signals — free-form key/value pairs the model used to reach its verdict.</td></tr>
+          <tr><td><code>enrichment</code></td><td>JSON object of pipeline enrichment results: SPF/DKIM/DMARC validity, display-name spoofing, domain age, DNSBL hits, URLhaus and VirusTotal matches, expanded URLs. <code>null</code> for records written before v0.3.3.</td></tr>
         </tbody>
       </table>
     </div>
