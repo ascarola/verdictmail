@@ -72,7 +72,7 @@ You MUST respond with a single valid JSON object matching this exact schema:
   "threat_level":       string,  // one of: "none", "low", "medium", "high", "critical"
   "threat_types":       array of strings,  // e.g. ["phishing", "credential_theft"] or []
   "confidence":         number,  // float 0.0–1.0 indicating your certainty in this assessment
-  "signals":            object,  // key evidence that informed your decision
+  "signals":            object,  // REQUIRED — always populate with 3-5 key factors that informed your decision, even for legitimate mail. For clean email include: authentication result summary, sender domain assessment, content type. For threats include specific indicators.
   "reasoning":          string,  // concise chain-of-thought explanation (1-3 sentences)
   "recommended_action": string   // one of: "pass", "flag", "quarantine", "move_to_junk", "block"
 }
