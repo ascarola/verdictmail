@@ -29,6 +29,9 @@ def setup_logging(log_file: str, max_bytes: int, backup_count: int) -> logging.L
     root = logging.getLogger()
     root.setLevel(logging.INFO)
 
+    # Suppress noisy internal loggers from third-party libraries
+    logging.getLogger("whois.whois").setLevel(logging.WARNING)
+
     # Rotating file handler
     file_handler = RotatingFileHandler(
         log_path,

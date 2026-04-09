@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.3-blue)
+![Version](https://img.shields.io/badge/version-0.3.4-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -361,6 +361,20 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.3.4 — Ollama reliability and log hygiene
+
+Non-breaking fix. No action required other than pulling and restarting:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+- **Ollama JSON mode**: Added `"format": "json"` to all Ollama API requests. Ollama's grammar-constrained sampling now enforces syntactically valid JSON at the token level, eliminating the intermittent parse-error retries that added 10–30 s of latency per affected message. Retry logic is retained for connection errors.
+- **WHOIS log noise**: Suppressed the `whois.whois` library's internal `ERROR` log entries for transient socket timeouts. Timeout failures are still captured in each message's enrichment `error_notes`; they were already handled gracefully — only the false-alarm `[ERROR]` journal noise is removed.
+
+---
 
 ### v0.3.3 — Enrichment data in audit log
 
