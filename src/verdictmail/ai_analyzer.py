@@ -313,6 +313,7 @@ class AiAnalyzer:
             ],
             "stream": False,
             "think": False,
+            "format": "json",
             "options": {"temperature": 0.1, "num_ctx": 8192},
         }
         url = f"{self.base_url}/api/chat"
