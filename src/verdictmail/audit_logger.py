@@ -29,8 +29,10 @@ def setup_logging(log_file: str, max_bytes: int, backup_count: int) -> logging.L
     root = logging.getLogger()
     root.setLevel(logging.INFO)
 
-    # Suppress noisy internal loggers from third-party libraries
-    logging.getLogger("whois.whois").setLevel(logging.WARNING)
+    # Suppress noisy internal loggers from third-party libraries.
+    # whois logs socket timeouts at ERROR level internally; we handle them
+    # gracefully in enrichment.py and record them in error_notes.
+    logging.getLogger("whois").setLevel(logging.CRITICAL)
 
     # Rotating file handler
     file_handler = RotatingFileHandler(

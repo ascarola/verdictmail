@@ -204,6 +204,9 @@ def _build_user_prompt(parsed_message, enrichment_result) -> str:
 # Validator
 # ---------------------------------------------------------------------------
 
+_REQUIRED_FIELDS = {"threat_level", "threat_types", "confidence", "signals", "reasoning", "recommended_action"}
+
+
 def _extract_json(text: str) -> dict:
     """Extract a JSON object from text that may contain markdown fences or preamble."""
     text = text.strip()
@@ -217,15 +220,24 @@ def _extract_json(text: str) -> dict:
         text = text.strip()
     # Try direct parse first
     try:
-        return json.loads(text)
+        data = json.loads(text)
     except json.JSONDecodeError:
-        pass
-    # Fall back: find the first { ... } block in the text
-    import re
-    match = re.search(r'\{[\s\S]*\}', text)
-    if match:
-        return json.loads(match.group())
-    raise json.JSONDecodeError("No JSON object found in response", text, 0)
+        # Fall back: find the first { ... } block in the text
+        import re
+        match = re.search(r'\{[\s\S]*\}', text)
+        if match:
+            data = json.loads(match.group())
+        else:
+            raise json.JSONDecodeError("No JSON object found in response", text, 0)
+
+    # If the top-level object is missing our fields, check one level of nesting.
+    # Some models wrap the response: {"analysis": {...}} or {"result": {...}}.
+    if isinstance(data, dict) and not (_REQUIRED_FIELDS & set(data.keys())):
+        for value in data.values():
+            if isinstance(value, dict) and (_REQUIRED_FIELDS & set(value.keys())):
+                return value
+
+    return data
 
 
 def _validate_ai_response(data: dict[str, Any]) -> AiResult:
@@ -348,8 +360,15 @@ class AiAnalyzer:
                                attempt + 1, self.MAX_RETRIES, exc, delay)
             except (json.JSONDecodeError, KeyError, ValueError) as exc:
                 last_exc = exc
-                logger.warning("AI response parse/validation error (attempt %d/%d): %s — retrying in %.1fs",
-                               attempt + 1, self.MAX_RETRIES, exc, delay)
+                # Log the actual content so we can diagnose schema mismatches
+                try:
+                    _content_preview = resp.json()["message"]["content"][:300]
+                except Exception:
+                    _content_preview = raw_response[:300]
+                logger.warning(
+                    "AI response parse/validation error (attempt %d/%d): %s — retrying in %.1fs | content: %r",
+                    attempt + 1, self.MAX_RETRIES, exc, delay, _content_preview,
+                )
             except RuntimeError as exc:
                 last_exc = exc
                 logger.warning("Ollama error (attempt %d/%d): %s — retrying in %.1fs",
