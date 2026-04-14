@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.4-blue)
+![Version](https://img.shields.io/badge/version-0.3.5-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -361,6 +361,21 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.3.5 — AI response resilience fixes
+
+Non-breaking fix. No action required other than pulling and restarting:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+- **Schema unwrapping**: Some emails caused `qwen2.5:7b` to consistently wrap its response in a nested object (e.g. `{"analysis": {...}}`) rather than returning the flat schema directly. These messages were recorded as `action=error` in the audit log — completely unanalyzed. The JSON extractor now detects and unwraps one level of nesting automatically.
+- **Failure diagnostics**: When AI response validation fails, the first 300 characters of the model's actual output are now logged to the journal, making future schema mismatches diagnosable without database archaeology.
+- **WHOIS log suppression corrected**: The v0.3.4 fix used `setLevel(WARNING)` which still passes `ERROR` messages through (ERROR > WARNING). Changed to `setLevel(CRITICAL)` on the parent `whois` logger to fully silence the noise.
+
+---
 
 ### v0.3.4 — Ollama reliability and log hygiene
 
