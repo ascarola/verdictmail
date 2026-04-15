@@ -318,10 +318,16 @@ class AiAnalyzer:
         # SYSTEM prompt (which carries /no_think for Qwen3.x and similar models),
         # causing thinking mode to activate. Fold instructions into the user turn.
         combined_prompt = f"{_SYSTEM_PROMPT}\n\n{user_prompt}"
+        # Seed the assistant turn with the opening of our schema. This forces
+        # the model to continue from this exact point rather than generating its
+        # own JSON structure (e.g. an email summary). The prefix is prepended
+        # back onto the response content before parsing.
+        _ASSISTANT_SEED = '{"threat_level":'
         payload = {
             "model": self.model,
             "messages": [
                 {"role": "user", "content": combined_prompt},
+                {"role": "assistant", "content": _ASSISTANT_SEED},
             ],
             "stream": False,
             "think": False,
@@ -345,7 +351,8 @@ class AiAnalyzer:
                     raise RuntimeError(f"Ollama returned HTTP {resp.status_code}: {resp.text[:200]}")
                 raw_response = resp.text
                 data = resp.json()
-                content = data["message"]["content"]
+                # Ollama returns only the continuation after the seed; restore it.
+                content = _ASSISTANT_SEED + data["message"]["content"]
                 parsed_json = _extract_json(content)
                 ai_result = _validate_ai_response(parsed_json)
                 ai_result.raw_response = raw_response
