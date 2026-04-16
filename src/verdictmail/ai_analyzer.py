@@ -208,7 +208,13 @@ _REQUIRED_FIELDS = {"threat_level", "threat_types", "confidence", "signals", "re
 
 
 def _extract_json(text: str) -> dict:
-    """Extract a JSON object from text that may contain markdown fences or preamble."""
+    """Extract and repair a JSON object from model output.
+
+    Handles: markdown fences, preamble text, truncated JSON, invalid escape
+    sequences (e.g. \\'), and one level of schema wrapping ({"analysis": {...}}).
+    """
+    from json_repair import repair_json
+
     text = text.strip()
     # Strip markdown code fences (```json ... ``` or ``` ... ```)
     if text.startswith("```"):
@@ -218,17 +224,15 @@ def _extract_json(text: str) -> dict:
         if text.endswith("```"):
             text = text[:-3].rstrip()
         text = text.strip()
-    # Try direct parse first
+
+    # Try strict parse first; fall back to json_repair for truncation/escaping issues.
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
-        # Fall back: find the first { ... } block in the text
-        import re
-        match = re.search(r'\{[\s\S]*\}', text)
-        if match:
-            data = json.loads(match.group())
-        else:
-            raise json.JSONDecodeError("No JSON object found in response", text, 0)
+        repaired = repair_json(text, return_objects=True)
+        if not isinstance(repaired, dict):
+            raise ValueError(f"json_repair could not produce a dict from response: {text[:200]}")
+        data = repaired
 
     # If the top-level object is missing our fields, check one level of nesting.
     # Some models wrap the response: {"analysis": {...}} or {"result": {...}}.
@@ -318,16 +322,10 @@ class AiAnalyzer:
         # SYSTEM prompt (which carries /no_think for Qwen3.x and similar models),
         # causing thinking mode to activate. Fold instructions into the user turn.
         combined_prompt = f"{_SYSTEM_PROMPT}\n\n{user_prompt}"
-        # Seed the assistant turn with the opening of our schema. This forces
-        # the model to continue from this exact point rather than generating its
-        # own JSON structure (e.g. an email summary). The prefix is prepended
-        # back onto the response content before parsing.
-        _ASSISTANT_SEED = '{"threat_level":'
         payload = {
             "model": self.model,
             "messages": [
                 {"role": "user", "content": combined_prompt},
-                {"role": "assistant", "content": _ASSISTANT_SEED},
             ],
             "stream": False,
             "think": False,
@@ -351,8 +349,7 @@ class AiAnalyzer:
                     raise RuntimeError(f"Ollama returned HTTP {resp.status_code}: {resp.text[:200]}")
                 raw_response = resp.text
                 data = resp.json()
-                # Ollama returns only the continuation after the seed; restore it.
-                content = _ASSISTANT_SEED + data["message"]["content"]
+                content = data["message"]["content"]
                 parsed_json = _extract_json(content)
                 ai_result = _validate_ai_response(parsed_json)
                 ai_result.raw_response = raw_response
