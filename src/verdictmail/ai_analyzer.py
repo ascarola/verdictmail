@@ -330,7 +330,10 @@ class AiAnalyzer:
             "stream": False,
             "think": False,
             "format": "json",
-            "options": {"temperature": 0.1, "num_ctx": 8192},
+            # Do not set num_ctx here — let the model use whatever context window
+            # it was loaded with in Ollama. Overriding it causes Ollama to reload
+            # the model, briefly evicting it from VRAM and disrupting other users.
+            "options": {"temperature": 0.1},
         }
         url = f"{self.base_url}/api/chat"
         raw_response = ""
