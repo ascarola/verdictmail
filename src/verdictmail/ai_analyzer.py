@@ -207,14 +207,20 @@ def _build_user_prompt(parsed_message, enrichment_result) -> str:
 _REQUIRED_FIELDS = {"threat_level", "threat_types", "confidence", "signals", "reasoning", "recommended_action"}
 
 
+try:
+    from json_repair import repair_json as _repair_json
+    _JSON_REPAIR_AVAILABLE = True
+except ImportError:
+    _JSON_REPAIR_AVAILABLE = False
+
+
 def _extract_json(text: str) -> dict:
-    """Extract and repair a JSON object from model output.
+    """Extract a JSON object from model output.
 
-    Handles: markdown fences, preamble text, truncated JSON, invalid escape
-    sequences (e.g. \\'), and one level of schema wrapping ({"analysis": {...}}).
+    Handles: markdown fences, preamble text, and one level of schema wrapping
+    ({"analysis": {...}}). If json_repair is installed, also handles truncated
+    JSON and invalid escape sequences from poorly-behaved models.
     """
-    from json_repair import repair_json
-
     text = text.strip()
     # Strip markdown code fences (```json ... ``` or ``` ... ```)
     if text.startswith("```"):
@@ -225,14 +231,24 @@ def _extract_json(text: str) -> dict:
             text = text[:-3].rstrip()
         text = text.strip()
 
-    # Try strict parse first; fall back to json_repair for truncation/escaping issues.
+    # Try strict parse first.
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
-        repaired = repair_json(text, return_objects=True)
-        if not isinstance(repaired, dict):
-            raise ValueError(f"json_repair could not produce a dict from response: {text[:200]}")
-        data = repaired
+        if _JSON_REPAIR_AVAILABLE:
+            # Fall back to json_repair for truncation/invalid escape issues.
+            repaired = _repair_json(text, return_objects=True)
+            if not isinstance(repaired, dict):
+                raise ValueError(f"json_repair could not produce a dict from response: {text[:200]}")
+            data = repaired
+        else:
+            # No repair library — try extracting the first {...} block as a last resort.
+            import re
+            match = re.search(r'\{[\s\S]*\}', text)
+            if match:
+                data = json.loads(match.group())
+            else:
+                raise
 
     # If the top-level object is missing our fields, check one level of nesting.
     # Some models wrap the response: {"analysis": {...}} or {"result": {...}}.
