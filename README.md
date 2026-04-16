@@ -368,11 +368,13 @@ Non-breaking fix. No action required other than pulling, installing dependencies
 
 ```bash
 git -C /opt/verdictmail pull
-pip install -r /opt/verdictmail/requirements.txt
+/opt/verdictmail/venv/bin/pip install -r /opt/verdictmail/requirements.txt
 systemctl restart verdictmail verdictmail-web
 ```
 
-- **`json-repair` dependency**: Added `json-repair` library as a fallback JSON parser. When `qwen2.5:7b` or other small models produce truncated JSON, invalid escape sequences (e.g. `\'`), or other malformed output, `json-repair` recovers the response automatically rather than exhausting all retries and recording `action=error`. **Fresh installs require `pip install -r requirements.txt` to pick this up.**
+> **Note:** VerdictMail runs inside a Python virtual environment at `/opt/verdictmail/venv`. Always use `/opt/verdictmail/venv/bin/pip` — not a bare `pip` command — when installing dependencies, or the package will land in the system Python and the service will not see it.
+
+- **`json-repair` dependency**: Added `json-repair` library as a fallback JSON parser. When `qwen2.5:7b` or other small models produce truncated JSON, invalid escape sequences (e.g. `\'`), or other malformed output, `json-repair` recovers the response automatically rather than exhausting all retries and recording `action=error`. **Existing installs must run the venv pip command above to pick this up.**
 - **Ollama `num_ctx` override removed**: VerdictMail was sending `num_ctx: 8192` in every Ollama request. If this value differs from the context window the model was loaded with, Ollama reloads the model — briefly evicting it from VRAM and disrupting other users sharing the same Ollama instance. VerdictMail now uses whatever context window the model was already loaded with. For reference, `gemma4:26b` loaded at 32,768 tokens comfortably covers the observed maximum prompt size of ~8,300 tokens.
 
 **Recommended model: `gemma4:26b`**
