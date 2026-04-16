@@ -212,7 +212,7 @@ else
     case "$AI_PROVIDER" in
         openai)    DEFAULT_MODEL="gpt-4o-mini" ;;
         anthropic) DEFAULT_MODEL="claude-haiku-4-5-20251001" ;;
-        ollama)    DEFAULT_MODEL="qwen2.5-coder:14b" ;;
+        ollama)    DEFAULT_MODEL="gemma4:26b" ;;
     esac
 
     OLLAMA_BASE_URL=""

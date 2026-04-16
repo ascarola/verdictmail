@@ -77,7 +77,7 @@ IMAP IDLE (main thread)
 - One of:
   - An OpenAI API key
   - An Anthropic API key
-  - A running [Ollama](https://ollama.com) instance (local or remote) with a model pulled (e.g. `ollama pull qwen2.5-coder:14b`). Models with thinking/reasoning mode (Qwen3, DeepSeek-R1, etc.) are fully supported — thinking is automatically disabled for latency-sensitive pipeline use.
+  - A running [Ollama](https://ollama.com) instance (local or remote) with a model pulled. 20B+ parameter models are recommended for reliable JSON schema adherence (e.g. `ollama pull gemma4:26b`). Smaller models work but may occasionally produce malformed responses. Models with thinking/reasoning mode (Qwen3, DeepSeek-R1, etc.) are fully supported — thinking is automatically disabled for latency-sensitive pipeline use.
 
 ---
 

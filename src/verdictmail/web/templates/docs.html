@@ -409,7 +409,7 @@
         </thead>
         <tbody>
           <tr><td>ai.provider</td><td><code>openai</code></td><td>AI backend: <code>openai</code>, <code>anthropic</code>, or <code>ollama</code>.</td></tr>
-          <tr><td>ai.model</td><td><code>gpt-4o-mini</code></td><td>Model name passed to the provider.</td></tr>
+          <tr><td>ai.model</td><td><code>gpt-4o-mini</code></td><td>Model name passed to the provider. For Ollama, 20B+ parameter models (e.g. <code>gemma4:26b</code>) are strongly recommended for reliable JSON schema adherence; smaller models such as <code>qwen2.5:7b</code> may produce malformed responses.</td></tr>
           <tr><td>ai.timeout_seconds</td><td><code>120</code></td><td>Per-request AI timeout. Increase for slow local Ollama models.</td></tr>
           <tr><td>ai.ollama_base_url</td><td>—</td><td>Required when <code>ai.provider = ollama</code>. Base URL of the Ollama instance.</td></tr>
           <tr><td>thresholds.flag</td><td><code>0.55</code></td><td>Minimum AI confidence (0–1) to FLAG a medium or high threat message.</td></tr>
