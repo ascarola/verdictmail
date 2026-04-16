@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.5-blue)
+![Version](https://img.shields.io/badge/version-0.3.6-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -361,6 +361,28 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.3.6 — JSON robustness and Ollama multi-model safety
+
+Non-breaking fix. No action required other than pulling, installing dependencies, and restarting:
+
+```bash
+git -C /opt/verdictmail pull
+pip install -r /opt/verdictmail/requirements.txt
+systemctl restart verdictmail verdictmail-web
+```
+
+- **`json-repair` dependency**: Added `json-repair` library as a fallback JSON parser. When `qwen2.5:7b` or other small models produce truncated JSON, invalid escape sequences (e.g. `\'`), or other malformed output, `json-repair` recovers the response automatically rather than exhausting all retries and recording `action=error`. **Fresh installs require `pip install -r requirements.txt` to pick this up.**
+- **Ollama `num_ctx` override removed**: VerdictMail was sending `num_ctx: 8192` in every Ollama request. If this value differs from the context window the model was loaded with, Ollama reloads the model — briefly evicting it from VRAM and disrupting other users sharing the same Ollama instance. VerdictMail now uses whatever context window the model was already loaded with. For reference, `gemma4:26b` loaded at 32,768 tokens comfortably covers the observed maximum prompt size of ~8,300 tokens.
+
+**Recommended model: `gemma4:26b`**
+If you have a capable Ollama server, switching to `gemma4:26b` (or another 20B+ model) is strongly recommended over `qwen2.5:7b`. The JSON schema compliance issues that drove the v0.3.3–v0.3.6 fixes are rooted in small model unreliability. Larger models follow the required output schema consistently. Update `ai.model` in your `config/verdictmail.yaml`:
+```yaml
+ai:
+  model: gemma4:26b
+```
+
+---
 
 ### v0.3.5 — AI response resilience fixes
 
