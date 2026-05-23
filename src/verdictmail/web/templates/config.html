@@ -70,6 +70,37 @@
   </div>
 </div>
 
+<!-- IMAP Folders quick-config -->
+{% set imap_cfg = cfg.get('imap', {}) %}
+<div class="card mb-4" style="max-width:620px">
+  <div class="card-header"><i class="bi bi-folder me-1"></i> IMAP Folders</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('config_imap') }}">
+      <div class="row g-3 align-items-end">
+        <div class="col-sm-6">
+          <label class="form-label small">Junk folder <span class="text-muted">(high/critical threat)</span></label>
+          <input type="text" name="junk_folder" class="form-control form-control-sm"
+            value="{{ imap_cfg.get('junk_folder', '[Gmail]/Spam') }}"
+            placeholder="[Gmail]/Spam">
+        </div>
+        <div class="col-sm-6">
+          <label class="form-label small">Suspect folder <span class="text-muted">(medium threat)</span></label>
+          <input type="text" name="suspect_folder" class="form-control form-control-sm"
+            value="{{ imap_cfg.get('suspect_folder', '') }}"
+            placeholder="e.g. Suspect">
+          <div class="form-text">Leave blank to star flagged messages (⭐) in-place instead of moving them.</div>
+        </div>
+      </div>
+      <div class="mt-3">
+        <button type="submit" class="btn btn-sm btn-primary">
+          <i class="bi bi-floppy me-1"></i> Apply Folder Settings
+        </button>
+        <span class="text-muted small ms-2">Daemon restart required to take effect.</span>
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Timezone quick-config -->
 {% set cfg_tz = cfg.get('timezone', 'UTC') %}
 <div class="card mb-4" style="max-width:620px">

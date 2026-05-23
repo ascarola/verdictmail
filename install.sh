@@ -250,9 +250,51 @@ cfg["timezone"] = "${TZ_NAME}"
 p.write_text(yaml.dump(cfg, default_flow_style=False, allow_unicode=True))
 PYEOF
 
+    # Suspect folder
+    echo
+    echo -e "${BOLD}Suspect folder for flagged messages (optional).${RESET}"
+    echo -e "VerdictMail can move medium-threat emails to a dedicated IMAP folder"
+    echo -e "instead of starring them. Create the label in Gmail (or folder in your"
+    echo -e "mail client) first, then enter its exact IMAP name here."
+    echo -e "Leave blank to use Gmail stars (\\Flagged) instead.\n"
+    read -rp "  Suspect folder name (leave blank to skip): " SUSPECT_FOLDER
+
+    if [[ -n "$SUSPECT_FOLDER" ]]; then
+        info "Verifying folder '${SUSPECT_FOLDER}' exists on the IMAP server..."
+        FOLDER_CHECK=$(/opt/verdictmail/venv/bin/python3 - <<PYEOF
+import os, sys
+from imapclient import IMAPClient
+try:
+    client = IMAPClient('imap.gmail.com', ssl=True)
+    client.login("${IMAP_USER}", "${IMAP_PASS}")
+    names = [name for _, _, name in client.list_folders()]
+    client.logout()
+    print("ok" if "${SUSPECT_FOLDER}" in names else "not_found")
+except Exception:
+    print("error")
+PYEOF
+        )
+        if [[ "$FOLDER_CHECK" == "ok" ]]; then
+            success "Folder '${SUSPECT_FOLDER}' found."
+            /opt/verdictmail/venv/bin/python3 - <<PYEOF
+import yaml, pathlib
+p = pathlib.Path("/opt/verdictmail/config/verdictmail.yaml")
+cfg = yaml.safe_load(p.read_text())
+cfg.setdefault("imap", {})["suspect_folder"] = "${SUSPECT_FOLDER}"
+p.write_text(yaml.dump(cfg, default_flow_style=False, allow_unicode=True))
+PYEOF
+        else
+            warn "Folder '${SUSPECT_FOLDER}' not found on the IMAP server (result: ${FOLDER_CHECK})."
+            warn "Skipping — configure it later via the web UI once the folder exists."
+            SUSPECT_FOLDER=""
+        fi
+    fi
+
     OLLAMA_MSG=""
     [[ -n "$OLLAMA_BASE_URL" ]] && OLLAMA_MSG=", ollama_url=${OLLAMA_BASE_URL}"
-    success "verdictmail.yaml configured (provider=${AI_PROVIDER}, model=${AI_MODEL}${OLLAMA_MSG}, timezone=${TZ_NAME})."
+    SUSPECT_MSG=""
+    [[ -n "$SUSPECT_FOLDER" ]] && SUSPECT_MSG=", suspect_folder=${SUSPECT_FOLDER}"
+    success "verdictmail.yaml configured (provider=${AI_PROVIDER}, model=${AI_MODEL}${OLLAMA_MSG}, timezone=${TZ_NAME}${SUSPECT_MSG})."
 fi
 
 # -----------------------------------------------------------------------------

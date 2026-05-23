@@ -1,5 +1,5 @@
 """
-imap_actions.py — IMAP keyword flag and move-to-Junk operations.
+imap_actions.py — IMAP flag and move operations.
 """
 
 from __future__ import annotations
@@ -12,13 +12,13 @@ from .decision_engine import FinalAction
 
 logger = logging.getLogger(__name__)
 
-_SUSPECT_FLAG = b"$VerdictMail-Suspect"
 _DEFAULT_JUNK_FOLDER = "[Gmail]/Spam"
 
 
 class ImapActionWriter:
-    def __init__(self, junk_folder: str = _DEFAULT_JUNK_FOLDER):
+    def __init__(self, junk_folder: str = _DEFAULT_JUNK_FOLDER, suspect_folder: str = ""):
         self._junk_folder = junk_folder
+        self._suspect_folder = suspect_folder
 
     def apply(self, uid: int, action: FinalAction, client: IMAPClient) -> None:
         """Apply the resolved action to the given message UID."""
@@ -33,32 +33,30 @@ class ImapActionWriter:
             self._move_to_junk(uid, client)
 
     # ------------------------------------------------------------------
-    # FLAG — set custom IMAP keyword
+    # FLAG — move to suspect folder, or star with \Flagged
     # ------------------------------------------------------------------
 
     def _flag_message(self, uid: int, client: IMAPClient) -> None:
-        try:
-            client.set_flags([uid], [_SUSPECT_FLAG])
-            logger.info("UID %d: flagged with %s", uid, _SUSPECT_FLAG.decode())
-        except Exception as exc:
-            # Some IMAP servers (e.g. older Exchange) reject custom keywords.
-            # Fall back to the standard \Flagged system flag.
-            exc_str = str(exc).upper()
-            if any(tok in exc_str for tok in ("CANNOT", "CLIENTBUG", "INVALID", "UNKNOWNFLAG", "BAD")):
-                logger.warning(
-                    "UID %d: server rejected custom keyword %s (%s) — "
-                    "falling back to \\Flagged",
-                    uid, _SUSPECT_FLAG.decode(), exc,
-                )
-                try:
-                    client.set_flags([uid], [b"\\Flagged"])
-                    logger.info("UID %d: flagged with \\Flagged (fallback)", uid)
-                    return
-                except Exception as exc2:
-                    logger.error("UID %d: fallback \\Flagged also failed: %s", uid, exc2)
-                    raise exc2
-            logger.error("UID %d: failed to set flag: %s", uid, exc)
-            raise
+        if self._suspect_folder:
+            try:
+                client.copy([uid], self._suspect_folder)
+            except Exception as exc:
+                logger.error("UID %d: COPY to '%s' failed — aborting move: %s", uid, self._suspect_folder, exc)
+                raise
+            try:
+                client.delete_messages([uid])
+                client.expunge()
+                logger.info("UID %d: moved to suspect folder '%s'", uid, self._suspect_folder)
+            except Exception as exc:
+                logger.error("UID %d: delete/expunge after copy failed (message may be duplicated): %s", uid, exc)
+                raise
+        else:
+            try:
+                client.set_flags([uid], [b"\\Flagged"])
+                logger.info("UID %d: starred (\\Flagged)", uid)
+            except Exception as exc:
+                logger.error("UID %d: failed to set \\Flagged: %s", uid, exc)
+                raise
 
     # ------------------------------------------------------------------
     # MOVE TO JUNK — copy then delete

@@ -385,8 +385,10 @@ def main() -> None:
     )
 
     junk_folder = imap_cfg.get("junk_folder", "[Gmail]/Spam")
-    action_writer = ImapActionWriter(junk_folder=junk_folder)
+    suspect_folder = imap_cfg.get("suspect_folder", "")
+    action_writer = ImapActionWriter(junk_folder=junk_folder, suspect_folder=suspect_folder)
     logger.info("Junk folder: %s", junk_folder)
+    logger.info("Suspect folder: %s", suspect_folder or "(none — starring)")
     model_name = ai_model
 
     whitelist_cfg = cfg.get("whitelist", {})

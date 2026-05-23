@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.6-blue)
+![Version](https://img.shields.io/badge/version-0.3.7-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -208,7 +208,8 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `imap.host` | `imap.gmail.com` | IMAP server |
 | `imap.port` | `993` | IMAP SSL port |
 | `imap.folder` | `INBOX` | Folder to monitor |
-| `imap.junk_folder` | `[Gmail]/Spam` | Destination folder for MOVE_TO_JUNK actions (e.g. `Junk` on Fastmail/Outlook) |
+| `imap.junk_folder` | `[Gmail]/Spam` | Destination folder for MOVE_TO_JUNK actions (high/critical threat) (e.g. `Junk` on Fastmail/Outlook) |
+| `imap.suspect_folder` | *(absent)* | Optional. Destination folder for FLAG actions (medium threat). Create the folder/label first, then enter its exact IMAP name. When absent, flagged messages are starred (`\Flagged`) in-place. |
 | `worker_threads` | `4` | Concurrent message processors |
 | `startup_scan_limit` | `20` | Max unread messages to process on startup |
 | `whitelist.enabled` | `true` | Master on/off for whitelist |
@@ -239,10 +240,8 @@ Set `IMAP_USERNAME` and `IMAP_PASSWORD` in `.env` to your account credentials, t
 | Action | When | Effect |
 |--------|------|--------|
 | `pass` | Clean mail, low threat, or whitelisted | No IMAP changes |
-| `flag` | Medium/high threat at sufficient confidence | Sets `$VerdictMail-Suspect` IMAP keyword; message stays in inbox |
+| `flag` | Medium/high threat at sufficient confidence | If `imap.suspect_folder` is configured: moves message there. Otherwise: stars the message (`\Flagged`) in-place. |
 | `move_to_junk` | High/critical threat at high confidence | Copies to the configured junk folder (`imap.junk_folder`, default `[Gmail]/Spam`), deletes original |
-
-> **Note (Gmail):** Gmail's web UI does not display custom IMAP keywords. The `$VerdictMail-Suspect` flag is visible to standard IMAP clients and is always recorded in the audit log.
 
 ---
 
@@ -361,6 +360,22 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.3.7 — Suspect folder and visible flag action
+
+Non-breaking feature addition. No action required other than pulling and restarting:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+- **Suspect folder**: The `flag` action (medium-threat mail) can now move messages to a dedicated IMAP folder instead of leaving them in the inbox. Create a folder/label in your mail client (Gmail: create a label, e.g. `Suspect`), then set `imap.suspect_folder` in `verdictmail.yaml` or via the web UI Configuration page → IMAP Folders.
+- **Visible flag default**: When `suspect_folder` is not configured, flagged messages are now starred (`\Flagged` — the Gmail yellow star) instead of the previous invisible `$VerdictMail-Suspect` IMAP keyword. This is a behaviour change from v0.3.6, but strictly better for all users.
+- **Install script**: The interactive installer now prompts for a suspect folder and validates it against the IMAP server before writing to config.
+- **Web UI**: New IMAP Folders card on the Configuration page exposes both `junk_folder` and `suspect_folder` without needing to edit YAML directly.
+
+---
 
 ### v0.3.6 — JSON robustness and Ollama multi-model safety
 

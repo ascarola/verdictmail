@@ -16,9 +16,13 @@ imap:
   folder: INBOX
   host: imap.gmail.com
   port: 993
-  # Folder to move messages into when action is MOVE_TO_JUNK.
+  # Folder to move messages into when action is MOVE_TO_JUNK (high/critical threat).
   # Gmail default: "[Gmail]/Spam". Other providers vary (e.g. "Junk" on Fastmail/Outlook).
   junk_folder: "[Gmail]/Spam"
+  # Optional: move FLAG-level (medium threat) messages here instead of starring them.
+  # Create this folder/label in your mail client first (e.g. a Gmail label "Suspect"),
+  # then enter its exact IMAP name. Leave unset to use \Flagged (Gmail star) instead.
+  # suspect_folder: "Suspect"
 
 paths:
   db_file: /var/log/verdictmail/verdictmail.db

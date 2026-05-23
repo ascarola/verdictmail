@@ -266,7 +266,7 @@ def local_dt_filter(utc_str: str, tz_name: str = "UTC") -> str:
 
 @app.context_processor
 def inject_globals():
-    """Inject tz_name and ai_model into every template automatically."""
+    """Inject tz_name, ai_model, and suspect_folder into every template automatically."""
     try:
         cfg = _load_config()
     except Exception:
@@ -275,6 +275,7 @@ def inject_globals():
     return {
         "tz_name": cfg.get("timezone", "UTC"),
         "ai_model": ai_cfg.get("model", "—"),
+        "suspect_folder": cfg.get("imap", {}).get("suspect_folder", ""),
     }
 
 
@@ -576,6 +577,54 @@ def config_ai():
         flash(f"AI provider set to '{provider}' (model: {ai_section.get('model', '?')}). Restart the daemon to apply.", "success")
     except Exception as exc:
         flash(f"Error updating AI config: {exc}", "danger")
+    return redirect(url_for("config_editor"))
+
+
+# ---------------------------------------------------------------------------
+# IMAP folder config  POST /config/imap
+# ---------------------------------------------------------------------------
+
+@app.route("/config/imap", methods=["POST"])
+@require_auth
+def config_imap():
+    junk_folder = request.form.get("junk_folder", "").strip()
+    suspect_folder = request.form.get("suspect_folder", "").strip()
+
+    if suspect_folder:
+        try:
+            imap_user = os.environ.get("IMAP_USERNAME", "")
+            imap_pass = os.environ.get("IMAP_PASSWORD", "")
+            cfg_tmp = _load_config()
+            imap_host = cfg_tmp.get("imap", {}).get("host", "imap.gmail.com")
+            imap_port = cfg_tmp.get("imap", {}).get("port", 993)
+            from imapclient import IMAPClient as _IMAPClient
+            with _IMAPClient(imap_host, port=imap_port, ssl=True) as _client:
+                _client.login(imap_user, imap_pass)
+                folder_names = [name for _, _, name in _client.list_folders()]
+            if suspect_folder not in folder_names:
+                flash(
+                    f"Folder '{suspect_folder}' not found on the IMAP server. "
+                    "Check the name is exact and the folder/label exists.",
+                    "danger",
+                )
+                return redirect(url_for("config_editor"))
+        except Exception as exc:
+            flash(f"Could not verify folder — IMAP connection failed: {exc}", "danger")
+            return redirect(url_for("config_editor"))
+
+    try:
+        cfg = _load_config()
+        imap_section = cfg.setdefault("imap", {})
+        if junk_folder:
+            imap_section["junk_folder"] = junk_folder
+        if suspect_folder:
+            imap_section["suspect_folder"] = suspect_folder
+        else:
+            imap_section.pop("suspect_folder", None)
+        _save_config(cfg)
+        flash("IMAP folder settings saved. Restart the daemon to apply.", "success")
+    except Exception as exc:
+        flash(f"Error updating IMAP config: {exc}", "danger")
     return redirect(url_for("config_editor"))
 
 

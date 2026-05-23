@@ -62,7 +62,9 @@
           <td>
             {% set act = r['action_taken'] or 'error' %}
             {% if act == 'pass' %}<span class="badge badge-pass">pass</span>
-            {% elif act == 'flag' %}<span class="badge badge-flag">flag</span>
+            {% elif act == 'flag' %}
+              {% if suspect_folder %}<span class="badge badge-flag" title="Moved to {{ suspect_folder }}">→ {{ suspect_folder }}</span>
+              {% else %}<span class="badge badge-flag">Starred</span>{% endif %}
             {% elif act == 'move_to_junk' %}<span class="badge badge-junk">junk</span>
             {% else %}<span class="badge badge-error">{{ act[:12] }}</span>{% endif %}
           </td>
