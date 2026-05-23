@@ -260,27 +260,44 @@ PYEOF
     read -rp "  Suspect folder name (leave blank to skip): " SUSPECT_FOLDER
 
     if [[ -n "$SUSPECT_FOLDER" ]]; then
+        # Bug fix: IMAP_USER/IMAP_PASS are only set when .env was freshly written
+        # (step 5 else-branch). On re-runs where .env already exists, read them back.
+        _VM_IMAP_USER="${IMAP_USER:-$(grep ^IMAP_USERNAME /opt/verdictmail/.env | cut -d= -f2-)}"
+        _VM_IMAP_PASS="${IMAP_PASS:-$(grep ^IMAP_PASSWORD /opt/verdictmail/.env | cut -d= -f2-)}"
+
         info "Verifying folder '${SUSPECT_FOLDER}' exists on the IMAP server..."
-        FOLDER_CHECK=$(/opt/verdictmail/venv/bin/python3 - <<PYEOF
-import os, sys
+        # Pass credentials and folder name as env vars to avoid shell-interpolation
+        # issues with special characters (quotes, backslashes) in passwords.
+        # Read imap.host/port from the yaml that was just written rather than
+        # hardcoding imap.gmail.com, so non-Gmail providers work correctly.
+        FOLDER_CHECK=$(
+            _VM_IMAP_USER="${_VM_IMAP_USER}" \
+            _VM_IMAP_PASS="${_VM_IMAP_PASS}" \
+            _VM_SUSPECT_FOLDER="${SUSPECT_FOLDER}" \
+            /opt/verdictmail/venv/bin/python3 - <<'PYEOF'
+import os, yaml, pathlib
 from imapclient import IMAPClient
 try:
-    client = IMAPClient('imap.gmail.com', ssl=True)
-    client.login("${IMAP_USER}", "${IMAP_PASS}")
+    cfg = yaml.safe_load(pathlib.Path("/opt/verdictmail/config/verdictmail.yaml").read_text())
+    imap_host = cfg.get("imap", {}).get("host", "imap.gmail.com")
+    imap_port = cfg.get("imap", {}).get("port", 993)
+    client = IMAPClient(imap_host, port=imap_port, ssl=True)
+    client.login(os.environ["_VM_IMAP_USER"], os.environ["_VM_IMAP_PASS"])
     names = [name for _, _, name in client.list_folders()]
     client.logout()
-    print("ok" if "${SUSPECT_FOLDER}" in names else "not_found")
+    print("ok" if os.environ["_VM_SUSPECT_FOLDER"] in names else "not_found")
 except Exception:
     print("error")
 PYEOF
         )
         if [[ "$FOLDER_CHECK" == "ok" ]]; then
             success "Folder '${SUSPECT_FOLDER}' found."
-            /opt/verdictmail/venv/bin/python3 - <<PYEOF
-import yaml, pathlib
+            _VM_SUSPECT_FOLDER="${SUSPECT_FOLDER}" \
+            /opt/verdictmail/venv/bin/python3 - <<'PYEOF'
+import os, yaml, pathlib
 p = pathlib.Path("/opt/verdictmail/config/verdictmail.yaml")
 cfg = yaml.safe_load(p.read_text())
-cfg.setdefault("imap", {})["suspect_folder"] = "${SUSPECT_FOLDER}"
+cfg.setdefault("imap", {})["suspect_folder"] = os.environ["_VM_SUSPECT_FOLDER"]
 p.write_text(yaml.dump(cfg, default_flow_style=False, allow_unicode=True))
 PYEOF
         else
@@ -288,6 +305,7 @@ PYEOF
             warn "Skipping — configure it later via the web UI once the folder exists."
             SUSPECT_FOLDER=""
         fi
+        unset _VM_IMAP_USER _VM_IMAP_PASS _VM_SUSPECT_FOLDER
     fi
 
     OLLAMA_MSG=""
