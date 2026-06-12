@@ -516,11 +516,15 @@ def config_editor():
 # Aggressiveness preset quick-config  POST /config/aggressiveness
 # ---------------------------------------------------------------------------
 
+# Threshold values are calibrated to where LLM self-rated confidence actually
+# lands for actionable verdicts (empirically 0.6-1.0; models rarely emit a
+# medium/high threat below 0.6). Values below that floor are dead settings
+# that behave identically, so the presets are spaced within the active band.
 _AGGRESSIVENESS_PRESETS = {
-    "conservative":  {"flag": 0.75, "junk": 0.92},
-    "default":       {"flag": 0.55, "junk": 0.80},
-    "aggressive":    {"flag": 0.38, "junk": 0.65},
-    "very_aggressive": {"flag": 0.22, "junk": 0.50},
+    "conservative":  {"flag": 0.80, "junk": 0.97},
+    "default":       {"flag": 0.72, "junk": 0.90},
+    "aggressive":    {"flag": 0.65, "junk": 0.82},
+    "very_aggressive": {"flag": 0.55, "junk": 0.72},
 }
 
 @app.route("/config/aggressiveness", methods=["POST"])
@@ -545,6 +549,39 @@ def config_aggressiveness():
         )
     except Exception as exc:
         flash(f"Error updating aggressiveness: {exc}", "danger")
+    return redirect(url_for("config_editor"))
+
+
+@app.route("/config/thresholds", methods=["POST"])
+@require_auth
+def config_thresholds():
+    """Set custom flag/junk thresholds directly, bypassing the presets."""
+    try:
+        flag_val = float(request.form.get("flag_threshold", ""))
+        junk_val = float(request.form.get("junk_threshold", ""))
+    except ValueError:
+        flash("Thresholds must be numbers between 0 and 1.", "danger")
+        return redirect(url_for("config_editor"))
+
+    if not (0.0 < flag_val <= 1.0 and 0.0 < junk_val <= 1.0):
+        flash("Thresholds must be between 0 and 1 (exclusive of 0).", "danger")
+        return redirect(url_for("config_editor"))
+    if flag_val > junk_val:
+        flash("Flag threshold must be less than or equal to the junk threshold.", "danger")
+        return redirect(url_for("config_editor"))
+
+    try:
+        cfg = _load_config()
+        cfg.setdefault("thresholds", {})["flag"] = flag_val
+        cfg["thresholds"]["junk"] = junk_val
+        _save_config(cfg)
+        flash(
+            f"Custom thresholds saved (flag ≥ {flag_val}, junk ≥ {junk_val}). "
+            "Restart the daemon to apply.",
+            "success",
+        )
+    except Exception as exc:
+        flash(f"Error saving thresholds: {exc}", "danger")
     return redirect(url_for("config_editor"))
 
 
@@ -732,6 +769,124 @@ def whitelist_delete(idx):
 
 
 # ---------------------------------------------------------------------------
+# Blacklist (always junk)  GET /blacklist, POST /blacklist/add etc.
+# ---------------------------------------------------------------------------
+
+def _parse_rule_form() -> dict | None:
+    """Build a whitelist/blacklist rule dict from the submitted form, or None
+    if no match field was filled in."""
+    sender = request.form.get("sender", "").strip().lower()
+    sender_domain = request.form.get("sender_domain", "").strip().lower()
+    subject_contains = request.form.get("subject_contains", "").strip()
+    comment = request.form.get("comment", "").strip()
+
+    if not (sender or sender_domain or subject_contains):
+        return None
+
+    rule: dict = {}
+    if sender:
+        rule["sender"] = sender
+    if sender_domain:
+        rule["sender_domain"] = sender_domain
+    if subject_contains:
+        rule["subject_contains"] = subject_contains
+    if comment:
+        rule["comment"] = comment
+    return rule
+
+
+def _whitelist_conflict(cfg: dict, rule: dict) -> dict | None:
+    """Return the first whitelist rule that targets the same sender/domain as
+    the given blacklist rule, or None. Used to warn about contradictory rules."""
+    for wl_rule in cfg.get("whitelist", {}).get("rules", []):
+        if rule.get("sender") and wl_rule.get("sender") == rule["sender"]:
+            return wl_rule
+        if rule.get("sender_domain") and wl_rule.get("sender_domain") == rule["sender_domain"]:
+            return wl_rule
+    return None
+
+
+@app.route("/blacklist", methods=["GET"])
+@require_auth
+def blacklist_view():
+    cfg = _load_config()
+    bl = cfg.get("blacklist", {})
+    rules = bl.get("rules", [])
+    enabled = bl.get("enabled", True)
+    return render_template("blacklist.html", rules=rules, enabled=enabled)
+
+
+@app.route("/blacklist/toggle", methods=["POST"])
+@require_auth
+def blacklist_toggle():
+    cfg = _load_config()
+    bl = cfg.setdefault("blacklist", {"enabled": True, "rules": []})
+    bl["enabled"] = not bl.get("enabled", True)
+    _save_config(cfg)
+    state = "enabled" if bl["enabled"] else "disabled"
+    flash(f"Blacklist {state}. Restart the daemon to apply.", "success")
+    return redirect(url_for("blacklist_view"))
+
+
+@app.route("/blacklist/add", methods=["POST"])
+@require_auth
+def blacklist_add():
+    rule = _parse_rule_form()
+    if rule is None:
+        flash("At least one of Sender Email, Sender Domain, or Subject must be filled in.", "danger")
+        return redirect(_safe_next_url(request.form.get("next", ""), url_for("blacklist_view")))
+
+    cfg = _load_config()
+    bl = cfg.setdefault("blacklist", {"enabled": True, "rules": []})
+    bl.setdefault("rules", []).append(rule)
+    _save_config(cfg)
+    flash("Blacklist rule added. Restart the daemon to apply.", "success")
+
+    conflict = _whitelist_conflict(cfg, rule)
+    if conflict:
+        flash(
+            "Warning: this sender also matches a whitelist rule "
+            f"({conflict.get('comment') or conflict.get('sender') or conflict.get('sender_domain')!r}). "
+            "The blacklist takes precedence — matching mail will be junked.",
+            "warning",
+        )
+    return redirect(_safe_next_url(request.form.get("next", ""), url_for("blacklist_view")))
+
+
+@app.route("/blacklist/edit/<int:idx>", methods=["POST"])
+@require_auth
+def blacklist_edit(idx):
+    rule = _parse_rule_form()
+    if rule is None:
+        flash("At least one of Sender Email, Sender Domain, or Subject must be filled in.", "danger")
+        return redirect(url_for("blacklist_view"))
+
+    cfg = _load_config()
+    rules = cfg.get("blacklist", {}).get("rules", [])
+    if 0 <= idx < len(rules):
+        rules[idx] = rule
+        _save_config(cfg)
+        flash("Blacklist rule updated. Restart the daemon to apply.", "success")
+    else:
+        flash("Rule not found.", "danger")
+    return redirect(url_for("blacklist_view"))
+
+
+@app.route("/blacklist/delete/<int:idx>", methods=["POST"])
+@require_auth
+def blacklist_delete(idx):
+    cfg = _load_config()
+    rules = cfg.get("blacklist", {}).get("rules", [])
+    if 0 <= idx < len(rules):
+        rules.pop(idx)
+        _save_config(cfg)
+        flash("Blacklist rule deleted. Restart the daemon to apply.", "success")
+    else:
+        flash("Rule not found.", "danger")
+    return redirect(url_for("blacklist_view"))
+
+
+# ---------------------------------------------------------------------------
 # Credentials editor  GET+POST /credentials
 # ---------------------------------------------------------------------------
 
@@ -852,31 +1007,23 @@ def test():
         parsed = parse_raw_message(raw_bytes)
         results["parsed"] = parsed
 
-        # Whitelist check — mirrors the daemon's _match_whitelist logic
+        # Blacklist/whitelist checks — mirror the daemon's _match_rules logic
+        from verdictmail.main import _match_rules
+
+        blacklist_cfg = cfg.get("blacklist", {})
+        blacklist_rules = blacklist_cfg.get("rules", []) if blacklist_cfg.get("enabled", True) else []
+        blacklist_match = _match_rules(blacklist_rules, parsed) if blacklist_rules else None
+
         whitelist_cfg = cfg.get("whitelist", {})
         whitelist_enabled = whitelist_cfg.get("enabled", True)
         whitelist_rules = whitelist_cfg.get("rules", []) if whitelist_enabled else []
         whitelist_match = None
-        if whitelist_rules:
-            _sender  = getattr(parsed, "sender_address", "") or ""
-            _domain  = getattr(parsed, "sender_domain",  "") or ""
-            _subject = (getattr(parsed, "subject", "") or "").lower()
-            for _rule in whitelist_rules:
-                _rs = (_rule.get("sender")           or "").lower()
-                _rd = (_rule.get("sender_domain")    or "").lower()
-                _rq = (_rule.get("subject_contains") or "").lower()
-                if not (_rs or _rd or _rq):
-                    continue
-                if _rs and _rs != _sender:
-                    continue
-                if _rd and _rd != _domain:
-                    continue
-                if _rq and _rq not in _subject:
-                    continue
-                whitelist_match = _rule
-                break
+        if not blacklist_match and whitelist_rules:
+            whitelist_match = _match_rules(whitelist_rules, parsed)
 
-        if whitelist_match:
+        if blacklist_match:
+            results["blacklist_match"] = blacklist_match
+        elif whitelist_match:
             results["whitelist_match"] = whitelist_match
         else:
             env_vals = _dv(str(ENV_PATH)) if ENV_PATH.exists() else {}
@@ -887,7 +1034,7 @@ def test():
             enriched = EnrichmentPipeline(dnsbl_lists).run(raw_bytes, parsed)
             results["enriched"] = enriched
 
-        if not whitelist_match:
+        if not whitelist_match and not blacklist_match:
             ai_provider = ai_cfg.get("provider", "ollama")
             env_vals = _dv(str(ENV_PATH)) if ENV_PATH.exists() else {}
             if ai_provider == "anthropic":

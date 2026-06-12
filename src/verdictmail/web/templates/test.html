@@ -136,6 +136,30 @@
 </div>
 {% endif %}
 
+<!-- Blacklist match -->
+{% if results.blacklist_match %}
+{% set bl = results.blacklist_match %}
+<div class="card mb-3 border-danger">
+  <div class="card-header text-danger"><i class="bi bi-shield-x me-1"></i>Blacklist Match — Pipeline Short-Circuited</div>
+  <div class="card-body small">
+    <p class="mb-2">This sender matched a blacklist (always junk) rule. Enrichment and AI analysis were skipped.</p>
+    <dl class="row mb-0">
+      {% if bl.sender %}<dt class="col-sm-3">Sender (exact)</dt><dd class="col-sm-9"><code>{{ bl.sender }}</code></dd>{% endif %}
+      {% if bl.sender_domain %}<dt class="col-sm-3">Sender domain</dt><dd class="col-sm-9"><code>{{ bl.sender_domain }}</code></dd>{% endif %}
+      {% if bl.subject_contains %}<dt class="col-sm-3">Subject contains</dt><dd class="col-sm-9"><code>{{ bl.subject_contains }}</code></dd>{% endif %}
+      {% if bl.comment %}<dt class="col-sm-3">Comment</dt><dd class="col-sm-9">{{ bl.comment }}</dd>{% endif %}
+    </dl>
+  </div>
+</div>
+<div class="card mb-3 border-danger">
+  <div class="card-header"><i class="bi bi-check2-circle me-1"></i>Final Decision</div>
+  <div class="card-body text-center py-4">
+    <span class="badge badge-junk fs-4 p-3">MOVE TO JUNK</span>
+    <p class="text-muted mt-3 mb-0 small">Blacklisted — dry run, no IMAP action applied.</p>
+  </div>
+</div>
+{% endif %}
+
 <!-- Enrichment -->
 {% if results.enriched %}
 {% set e = results.enriched %}

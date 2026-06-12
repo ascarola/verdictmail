@@ -139,10 +139,10 @@
 {% set cur_flag = thresh.get('flag', 0.55) %}
 {% set cur_junk = thresh.get('junk', 0.80) %}
 {% set presets = [
-  ('conservative',  'Conservative',  0.75, 0.92, 'Only acts on very obvious threats. Lowest false-positive rate.'),
-  ('default',       'Default',       0.55, 0.80, 'Balanced sensitivity. Recommended starting point.'),
-  ('aggressive',    'Aggressive',    0.38, 0.65, 'Flags and junks more mail. May catch more, but expect more false positives.'),
-  ('very_aggressive','Very Aggressive',0.22,0.50,'High catch rate. Intended for high-risk environments; review audit log frequently.'),
+  ('conservative',  'Conservative',  0.80, 0.97, 'Only acts on very obvious threats. Lowest false-positive rate.'),
+  ('default',       'Default',       0.72, 0.90, 'Balanced sensitivity. Recommended starting point.'),
+  ('aggressive',    'Aggressive',    0.65, 0.82, 'Flags and junks more mail. May catch more, but expect more false positives.'),
+  ('very_aggressive','Very Aggressive',0.55,0.72,'High catch rate. Intended for high-risk environments; review audit log frequently.'),
 ] %}
 {% set active_preset = namespace(name=None) %}
 {% for key, label, f, j, desc in presets %}
@@ -171,6 +171,30 @@
     {% if active_preset.name is none %}
     <p class="small text-muted mb-0">Custom thresholds active — flag: <code>{{ cur_flag }}</code>, junk: <code>{{ cur_junk }}</code>. Select a preset above to apply a standard level.</p>
     {% endif %}
+    <hr class="my-3">
+    <form method="post" action="{{ url_for('config_thresholds') }}">
+      <div class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label for="flag_threshold" class="form-label small text-muted mb-1">Flag threshold</label>
+          <input type="number" class="form-control form-control-sm" id="flag_threshold"
+                 name="flag_threshold" min="0.01" max="1" step="0.01"
+                 value="{{ cur_flag }}" style="width:7rem" required>
+        </div>
+        <div class="col-auto">
+          <label for="junk_threshold" class="form-label small text-muted mb-1">Junk threshold</label>
+          <input type="number" class="form-control form-control-sm" id="junk_threshold"
+                 name="junk_threshold" min="0.01" max="1" step="0.01"
+                 value="{{ cur_junk }}" style="width:7rem" required>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Apply Custom</button>
+        </div>
+      </div>
+      <div class="form-text">
+        Set your own confidence cutoffs (0–1). Flag must be ≤ junk. Useful when your
+        AI model's confidence range doesn't match the presets.
+      </div>
+    </form>
   </div>
 </div>
 

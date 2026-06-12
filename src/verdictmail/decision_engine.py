@@ -36,7 +36,10 @@ class DecisionEngine:
           3. threat_level == 'critical'                              → MOVE_TO_JUNK
           4. threat_level == 'high' AND confidence >= junk_threshold → MOVE_TO_JUNK
           5. threat_level == 'high' AND AI wants aggressive action
-             AND confidence >= flag_threshold                        → MOVE_TO_JUNK
+             AND confidence >= midpoint of flag/junk thresholds      → MOVE_TO_JUNK
+             (the AI's explicit junk/block recommendation earns a discount on the
+             junk threshold, but not all the way down to the flag threshold —
+             otherwise the junk threshold would be bypassed entirely)
           6. threat_level in ('medium','high') AND confidence >= flag_threshold → FLAG
           7. everything else                                         → PASS
         """
@@ -63,7 +66,7 @@ class DecisionEngine:
         # High threat + AI wants aggressive action + sufficient confidence → junk
         elif (
             threat_level == "high"
-            and confidence >= self.flag_threshold
+            and confidence >= (self.flag_threshold + self.junk_threshold) / 2
             and ai_action in ("quarantine", "move_to_junk", "block")
         ):
             action = FinalAction.MOVE_TO_JUNK

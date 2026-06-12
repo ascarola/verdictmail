@@ -48,4 +48,15 @@ whitelist:
   enabled: true
   rules: []
 
+# Blacklist: senders matched here skip analysis and move straight to the junk
+# folder. Useful for senders that ignore unsubscribe/opt-out requests.
+# Takes precedence over the whitelist. Same rule schema as the whitelist:
+#   - sender: promo@spammer.com        # exact address
+#     sender_domain: spammer.com       # any address at domain
+#     subject_contains: limited offer  # case-insensitive substring
+#     comment: Ignores opt-out
+blacklist:
+  enabled: true
+  rules: []
+
 worker_threads: 4

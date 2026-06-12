@@ -88,6 +88,9 @@
       <a class="nav-link {% if request.endpoint == 'whitelist_view' %}active{% endif %}" href="{{ url_for('whitelist_view') }}">
         <i class="bi bi-shield-check"></i> Whitelist
       </a>
+      <a class="nav-link {% if request.endpoint == 'blacklist_view' %}active{% endif %}" href="{{ url_for('blacklist_view') }}">
+        <i class="bi bi-shield-x"></i> Blacklist
+      </a>
       <a class="nav-link {% if request.endpoint == 'credentials' %}active{% endif %}" href="{{ url_for('credentials') }}">
         <i class="bi bi-key"></i> Credentials
       </a>

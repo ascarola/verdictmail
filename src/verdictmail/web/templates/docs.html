@@ -37,7 +37,7 @@
        style="overflow-y:auto; max-height:calc(100vh - 72px)">
 
     <h4 class="mb-1"><i class="bi bi-book me-2"></i>Documentation</h4>
-    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.3.7</p>
+    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.3.8</p>
 
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="overview">Overview</h5>
@@ -87,8 +87,17 @@
                 display name, subject, all headers, plain-text body, HTML body, and a
                 deduplicated list of URLs.</td>
           </tr>
-          <tr class="table-success bg-opacity-10">
+          <tr class="table-danger bg-opacity-10">
             <td>2a</td>
+            <td><strong>Blacklist check</strong></td>
+            <td>The sender and subject are compared against your blacklist
+                (always junk) rules. If a match is found the message is moved
+                straight to the junk folder with no further processing.
+                The blacklist takes precedence over the whitelist.
+                See <a href="#blacklist" class="text-info">Blacklist</a>.</td>
+          </tr>
+          <tr class="table-success bg-opacity-10">
+            <td>2b</td>
             <td><strong>Whitelist check</strong></td>
             <td>The sender and subject are compared against your whitelist rules.
                 If a match is found the message is immediately passed with no further
@@ -396,6 +405,25 @@
     </p>
 
     <!-- ================================================================ -->
+    <h5 class="doc-anchor" id="blacklist">Blacklist (Always Junk)</h5>
+    <hr class="mt-1">
+    <p>
+      The blacklist is the mirror image of the whitelist: senders matched here are
+      moved straight to the junk folder without enrichment or AI analysis. Use it
+      as an override for senders that ignore unsubscribe/opt-out requests or that
+      you simply never want to see in your inbox. Blacklisted messages are logged
+      with <code>action=move_to_junk</code>, <code>confidence=1.0</code>, a
+      <code>model_name</code> of <code>"blacklist"</code>, and a reasoning note of
+      <em>"Blacklisted (always junk): &lt;comment&gt;"</em>.
+    </p>
+    <ul class="small mb-3">
+      <li>Rule fields and matching logic are identical to the <a href="#whitelist" class="text-info">whitelist</a>: <code>sender</code>, <code>sender_domain</code>, <code>subject_contains</code>, and <code>comment</code>, with AND logic within a rule and first-match-wins across rules.</li>
+      <li><strong>The blacklist takes precedence over the whitelist</strong> — if a sender matches both, the message is junked. The web UI warns when you add a conflicting rule.</li>
+      <li>Add rules from the <a href="{{ url_for('blacklist_view') }}" class="text-info">Blacklist</a> page, or directly from any message's detail view in the Audit Log via the <em>Junk Sender</em> button.</li>
+      <li>Blacklist changes take effect after a daemon restart.</li>
+    </ul>
+
+    <!-- ================================================================ -->
     <h5 class="doc-anchor" id="configuration">Configuration Reference</h5>
     <hr class="mt-1">
     <p class="small text-muted mb-3">
@@ -412,8 +440,8 @@
           <tr><td>ai.model</td><td><code>gpt-4o-mini</code></td><td>Model name passed to the provider. For Ollama, 20B+ parameter models (e.g. <code>gemma4:26b</code>) are strongly recommended for reliable JSON schema adherence; smaller models such as <code>qwen2.5:7b</code> may produce malformed responses.</td></tr>
           <tr><td>ai.timeout_seconds</td><td><code>120</code></td><td>Per-request AI timeout. Increase for slow local Ollama models.</td></tr>
           <tr><td>ai.ollama_base_url</td><td>—</td><td>Required when <code>ai.provider = ollama</code>. Base URL of the Ollama instance.</td></tr>
-          <tr><td>thresholds.flag</td><td><code>0.55</code></td><td>Minimum AI confidence (0–1) to FLAG a medium or high threat message.</td></tr>
-          <tr><td>thresholds.junk</td><td><code>0.80</code></td><td>Minimum AI confidence to move a high threat message to junk.</td></tr>
+          <tr><td>thresholds.flag</td><td><code>0.72</code></td><td>Minimum AI confidence (0–1) to FLAG a medium or high threat message. Set via the Aggressiveness presets or custom inputs on the Configuration page.</td></tr>
+          <tr><td>thresholds.junk</td><td><code>0.90</code></td><td>Minimum AI confidence to move a high threat message to junk. A high-threat verdict where the AI itself recommends junking is moved at the midpoint of the two thresholds.</td></tr>
           <tr><td>imap.host</td><td><code>imap.gmail.com</code></td><td>IMAP server hostname.</td></tr>
           <tr><td>imap.port</td><td><code>993</code></td><td>IMAP server port (TLS).</td></tr>
           <tr><td>imap.folder</td><td><code>INBOX</code></td><td>Mailbox folder to monitor.</td></tr>
@@ -424,6 +452,8 @@
           <tr><td>dnsbl.lists</td><td>3 lists</td><td>DNS blocklists to query for sender IP reputation.</td></tr>
           <tr><td>whitelist.enabled</td><td><code>true</code></td><td>Master on/off switch for the whitelist. Does not delete rules.</td></tr>
           <tr><td>whitelist.rules</td><td><code>[]</code></td><td>List of whitelist rule objects. See <a href="#whitelist" class="text-info">Whitelist</a>.</td></tr>
+          <tr><td>blacklist.enabled</td><td><code>true</code></td><td>Master on/off switch for the blacklist. Does not delete rules.</td></tr>
+          <tr><td>blacklist.rules</td><td><code>[]</code></td><td>List of always-junk rule objects (same schema as whitelist rules). See <a href="#blacklist" class="text-info">Blacklist</a>.</td></tr>
           <tr><td>timezone</td><td><code>UTC</code></td><td>IANA timezone name used for dashboard "today" counts and audit log display.</td></tr>
           <tr><td>paths.log_file</td><td><code>/var/log/verdictmail/verdictmail.log</code></td><td>Rotating log file path.</td></tr>
           <tr><td>paths.db_file</td><td><code>/var/log/verdictmail/verdictmail.db</code></td><td>SQLite audit database path.</td></tr>
@@ -508,7 +538,7 @@
     <p>
       Every processed message generates a record in the SQLite database at
       <code>/var/log/verdictmail/verdictmail.db</code>, regardless of outcome
-      (including errors and whitelisted messages). Records are viewable on the
+      (including errors and whitelisted/blacklisted messages). Records are viewable on the
       <a href="{{ url_for('audit') }}" class="text-info">Audit Log</a> page.
     </p>
     <div class="table-responsive mb-3">
@@ -521,10 +551,10 @@
           <tr><td><code>sender</code></td><td>Bare From address (lowercased).</td></tr>
           <tr><td><code>subject</code></td><td>Message subject.</td></tr>
           <tr><td><code>threat_level</code></td><td>AI classification: none / low / medium / high / critical. <code>"unknown"</code> if the pipeline errored before AI.</td></tr>
-          <tr><td><code>confidence</code></td><td>AI confidence score, 0.0–1.0. Set to <code>1.0</code> for whitelisted messages.</td></tr>
+          <tr><td><code>confidence</code></td><td>AI confidence score, 0.0–1.0. Set to <code>1.0</code> for whitelisted and blacklisted messages.</td></tr>
           <tr><td><code>action_taken</code></td><td>Final action: <code>pass</code>, <code>flag</code>, <code>move_to_junk</code>, or <code>error:&lt;action&gt;</code> if the IMAP step failed.</td></tr>
           <tr><td><code>reasoning</code></td><td>AI's explanation. For whitelisted messages: <em>"Whitelisted: &lt;comment&gt;"</em>.</td></tr>
-          <tr><td><code>model_name</code></td><td>AI model used (e.g. <code>gpt-4o-mini</code>). Set to <code>"whitelist"</code> for whitelisted messages.</td></tr>
+          <tr><td><code>model_name</code></td><td>AI model used (e.g. <code>gpt-4o-mini</code>). Set to <code>"whitelist"</code> or <code>"blacklist"</code> for rule-matched messages.</td></tr>
           <tr><td><code>processing_ms</code></td><td>Total wall-clock time for the pipeline in milliseconds.</td></tr>
           <tr><td><code>signals</code></td><td>JSON object of AI-identified signals — free-form key/value pairs the model used to reach its verdict.</td></tr>
           <tr><td><code>enrichment</code></td><td>JSON object of pipeline enrichment results: SPF/DKIM/DMARC validity, display-name spoofing, domain age, DNSBL hits, URLhaus and VirusTotal matches, expanded URLs. <code>null</code> for records written before v0.3.3.</td></tr>

@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.7-blue)
+![Version](https://img.shields.io/badge/version-0.3.8-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -15,13 +15,14 @@ AI-powered email threat analysis daemon. Monitors your inbox via IMAP IDLE and r
 ## Features
 
 - **Real-time monitoring** via IMAP IDLE (push, no polling)
-- **Multi-stage pipeline**: parse → whitelist check → enrich → AI → decide → act → audit
+- **Multi-stage pipeline**: parse → blacklist/whitelist check → enrich → AI → decide → act → audit
 - **Enrichment signals**: SPF, DKIM, DMARC, DKIM alignment (cousin-domain `d=` mismatch detection), DNSBL reputation, WHOIS domain age, display-name spoofing, passive URL expansion (shorteners only — no beaconing), [URLhaus](https://urlhaus.abuse.ch) malware URL reputation, and [VirusTotal](https://www.virustotal.com) URL & IP reputation (90+ vendors)
 - **AI providers**: OpenAI, Anthropic, or a local [Ollama](https://ollama.com) instance
-- **Three actions**: pass (no change), flag (IMAP keyword), move to configured junk folder (default: `[Gmail]/Spam`)
+- **Three actions**: pass (no change), flag (star or move to a Suspect folder), move to configured junk folder (default: `[Gmail]/Spam`)
 - **Aggressiveness presets**: one-click sensitivity tuning (Conservative / Default / Aggressive / Very Aggressive) with fine-grained YAML override
 - **Whitelist**: exempt trusted senders from analysis by email, domain, or subject pattern
-- **Web UI**: Flask admin interface — dashboard, audit log, configuration, whitelist, credentials, manual test, documentation
+- **Blacklist (always junk)**: senders that ignore unsubscribe requests can be moved straight to junk without analysis — addable in one click from the audit log
+- **Web UI**: Flask admin interface — dashboard, audit log, configuration, whitelist, blacklist, credentials, manual test, documentation
 - **Audit log**: full SQLite record of every decision including enrichment results (SPF, DKIM, DMARC, DNSBL, URLhaus, VirusTotal), AI signals, reasoning, and processing time — viewable per-message from the Audit Log page
 - **Backup & restore**: export configuration (YAML only) or a full backup ZIP (YAML + credentials) from the web UI; restore via ZIP upload with a single click
 
@@ -58,11 +59,12 @@ IMAP IDLE (main thread)
     └─▶ ThreadPoolExecutor (worker threads)
             │
             ├── message_parser   — RFC 822 parsing, URL extraction
+            ├── blacklist        — user-marked "always junk" senders → straight to junk
             ├── whitelist        — bypass enrichment/AI for trusted senders
             ├── enrichment       — SPF/DMARC/DKIM/DKIM alignment/DNSBL/WHOIS/URL expansion/URLhaus/VirusTotal
             ├── ai_analyzer      — OpenAI / Anthropic / Ollama via httpx
             ├── decision_engine  — threshold logic → PASS / FLAG / MOVE_TO_JUNK
-            ├── imap_actions     — set $VerdictMail-Suspect keyword or copy+delete
+            ├── imap_actions     — star, move to suspect folder, or copy+delete to junk
             └── audit_logger     — SQLite + rotating log file
 ```
 
@@ -203,8 +205,8 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `ai.model` | `gpt-4o-mini` | Model name passed to the provider |
 | `ai.timeout_seconds` | `120` | Per-request AI timeout |
 | `ai.ollama_base_url` | `http://localhost:11434` | Ollama base URL (ollama provider only) |
-| `thresholds.flag` | `0.55` | Minimum confidence to flag medium/high threat. Set via the Aggressiveness preset or directly. |
-| `thresholds.junk` | `0.80` | Minimum confidence to move high threat to Junk. Set via the Aggressiveness preset or directly. |
+| `thresholds.flag` | `0.72` | Minimum confidence to flag medium/high threat. Set via the Aggressiveness presets or custom threshold inputs on the Configuration page. |
+| `thresholds.junk` | `0.90` | Minimum confidence to move high threat to Junk. Set via the Aggressiveness presets or custom threshold inputs on the Configuration page. |
 | `imap.host` | `imap.gmail.com` | IMAP server |
 | `imap.port` | `993` | IMAP SSL port |
 | `imap.folder` | `INBOX` | Folder to monitor |
@@ -214,6 +216,8 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `startup_scan_limit` | `20` | Max unread messages to process on startup |
 | `whitelist.enabled` | `true` | Master on/off for whitelist |
 | `whitelist.rules` | `[]` | List of whitelist rule objects |
+| `blacklist.enabled` | `true` | Master on/off for blacklist (always junk) |
+| `blacklist.rules` | `[]` | List of always-junk rule objects (same schema as whitelist) |
 | `timezone` | `UTC` | IANA timezone for dashboard and audit log |
 
 ---
@@ -241,7 +245,7 @@ Set `IMAP_USERNAME` and `IMAP_PASSWORD` in `.env` to your account credentials, t
 |--------|------|--------|
 | `pass` | Clean mail, low threat, or whitelisted | No IMAP changes |
 | `flag` | Medium/high threat at sufficient confidence | If `imap.suspect_folder` is configured: moves message there. Otherwise: stars the message (`\Flagged`) in-place. |
-| `move_to_junk` | High/critical threat at high confidence | Copies to the configured junk folder (`imap.junk_folder`, default `[Gmail]/Spam`), deletes original |
+| `move_to_junk` | High/critical threat at high confidence, or blacklisted sender | Copies to the configured junk folder (`imap.junk_folder`, default `[Gmail]/Spam`), deletes original |
 
 ---
 
@@ -258,6 +262,17 @@ Multiple fields in one rule require **all** to match (AND logic). Manage rules v
 
 ---
 
+## Blacklist (always junk)
+
+The blacklist is the mirror image of the whitelist: matching messages skip enrichment and AI analysis and move straight to the junk folder. Use it as an override for senders that ignore unsubscribe/opt-out requests.
+
+- Same rule schema and matching logic as the whitelist (`sender`, `sender_domain`, `subject_contains`, `comment`)
+- **Takes precedence over the whitelist** — if a sender matches both, the message is junked (the web UI warns about conflicting rules)
+- Add rules from the Blacklist page, or from any message's detail view in the Audit Log via the **Junk Sender** button
+- Logged with `action=move_to_junk` and `model_name="blacklist"` so user-mandated junk is distinguishable from AI verdicts
+
+---
+
 ## Web UI
 
 The Flask admin interface runs on port 80 alongside the daemon.
@@ -268,6 +283,7 @@ The Flask admin interface runs on port 80 alongside the daemon.
 | Audit Log | `/audit` | Paginated, searchable table with full-detail modal |
 | Configuration | `/config` | In-browser YAML editor + AI provider quick-config |
 | Whitelist | `/whitelist` | Add, edit, and delete whitelist rules |
+| Blacklist | `/blacklist` | Add, edit, and delete always-junk rules |
 | Credentials | `/credentials` | IMAP credentials and API key management |
 | Manual Test | `/test` | Dry-run pipeline on a submitted email |
 | Documentation | `/docs` | In-app reference manual |
@@ -360,6 +376,23 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.3.8 — Blacklist (always junk) and recalibrated thresholds
+
+Non-breaking feature addition. No action required other than pulling and restarting:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+- **Blacklist**: New `blacklist` section in `verdictmail.yaml` (same rule schema as the whitelist). Matching senders skip analysis and move straight to junk — an override for senders that ignore unsubscribe requests. Manage rules on the new Blacklist page or via the **Junk Sender** button in the Audit Log detail view. The blacklist takes precedence over the whitelist.
+- **Recalibrated Aggressiveness presets**: The four presets are now spaced within the confidence range LLMs actually emit (actionable verdicts empirically score 0.6–1.0; the old `0.22`–`0.55` flag thresholds were below that floor, making three of the four presets behave identically). New values: Conservative `0.80/0.97`, Default `0.72/0.90`, Aggressive `0.65/0.82`, Very Aggressive `0.55/0.72`. **Existing installs keep their current YAML values** — re-select your preset on the Configuration page to adopt the new calibration.
+- **Custom thresholds in the UI**: The Configuration page Aggressiveness card now has direct flag/junk threshold inputs for models whose confidence distribution doesn't match the presets.
+- **Decision rule tightened**: A `high`-threat verdict where the AI recommends quarantine/junk/block now requires confidence ≥ the midpoint of the flag and junk thresholds (previously only the flag threshold, which let the AI's recommendation bypass the junk threshold entirely).
+- **Audit display fix**: Whitelisted/blacklisted messages no longer show "Not available — recorded before v0.3.3" in the Enrichment section; they now correctly state that enrichment was skipped by rule.
+
+---
 
 ### v0.3.7 — Suspect folder and visible flag action
 

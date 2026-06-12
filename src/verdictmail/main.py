@@ -69,11 +69,11 @@ def _serialize_enrichment(enrichment) -> dict | None:
 
 
 # ---------------------------------------------------------------------------
-# Whitelist helper
+# Whitelist/blacklist rule matching
 # ---------------------------------------------------------------------------
 
-def _match_whitelist(rules: list[dict], parsed) -> dict | None:
-    """Return the first matching whitelist rule, or None.
+def _match_rules(rules: list[dict], parsed) -> dict | None:
+    """Return the first matching rule, or None.
 
     A rule matches when ALL of its specified criteria match the message.
     Supported criteria: sender (exact email), sender_domain, subject_contains.
@@ -116,6 +116,7 @@ def _process_message(
     inflight_lock: threading.Lock,
     done_uids: set,
     whitelist_rules: list,
+    blacklist_rules: list,
 ) -> None:
     from .audit_logger import log_decision
     from imapclient import IMAPClient
@@ -150,9 +151,35 @@ def _process_message(
         from .message_parser import parse_raw_message
         parsed = parse_raw_message(raw_bytes)
 
-        # 3a. Whitelist check — bypass enrichment/AI for trusted senders
-        whitelist_match = _match_whitelist(whitelist_rules, parsed) if whitelist_rules else None
-        if whitelist_match:
+        # 3a. Blacklist check — user-marked "always junk" senders. Checked before
+        #     the whitelist: a blacklist entry is an explicit override.
+        blacklist_match = _match_rules(blacklist_rules, parsed) if blacklist_rules else None
+        if blacklist_match:
+            comment = (
+                blacklist_match.get("comment")
+                or blacklist_match.get("sender")
+                or blacklist_match.get("sender_domain")
+                or "rule match"
+            )
+            log.info("UID %d: blacklisted (%s) — moving to junk, skipping analysis", uid, comment)
+            ai_result = types.SimpleNamespace(
+                threat_level="none",
+                threat_types=[],
+                confidence=1.0,
+                signals={},
+                reasoning=f"Blacklisted (always junk): {comment}",
+                raw_response="",
+            )
+            model_name = "blacklist"
+            from .decision_engine import FinalAction
+            action_taken = FinalAction.MOVE_TO_JUNK.value
+            try:
+                action_writer.apply(uid, FinalAction.MOVE_TO_JUNK, worker_client)
+            except Exception as exc:
+                log.error("UID %d: IMAP action move_to_junk failed: %s", uid, exc)
+                action_taken = f"error:{FinalAction.MOVE_TO_JUNK.value}"
+        # 3b. Whitelist check — bypass enrichment/AI for trusted senders
+        elif (whitelist_match := _match_rules(whitelist_rules, parsed) if whitelist_rules else None):
             comment = (
                 whitelist_match.get("comment")
                 or whitelist_match.get("sender")
@@ -399,6 +426,14 @@ def main() -> None:
     else:
         logger.info("Whitelist disabled or empty")
 
+    blacklist_cfg = cfg.get("blacklist", {})
+    blacklist_enabled = blacklist_cfg.get("enabled", True)
+    blacklist_rules: list[dict] = blacklist_cfg.get("rules", []) if blacklist_enabled else []
+    if blacklist_rules:
+        logger.info("Blacklist active: %d rule(s)", len(blacklist_rules))
+    else:
+        logger.info("Blacklist disabled or empty")
+
     # -----------------------------------------------------------------------
     # 6. Signal handling for graceful shutdown
     # -----------------------------------------------------------------------
@@ -430,6 +465,7 @@ def main() -> None:
             inflight_lock,
             done_uids,
             whitelist_rules,
+            blacklist_rules,
         )
 
     def _handle_signal(signum, frame):
