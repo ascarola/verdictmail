@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.8-blue)
+![Version](https://img.shields.io/badge/version-0.3.9-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -376,6 +376,19 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.3.9 — Security: hardened redirect validation
+
+Non-breaking security fix. Pull and restart:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+- **Hardened `_safe_next_url`**: the post-login / post-action redirect helper now rejects backslash payloads (`/\evil.com`, which browsers normalize into the external host `//evil.com`) and CR/LF/control characters (header injection), in addition to the absolute and protocol-relative URLs it already blocked. Only single-slash-rooted local paths are accepted. Resolves CodeQL `py/url-redirection` alerts.
+
+---
 
 ### v0.3.8 — Blacklist (always junk) and recalibrated thresholds
 

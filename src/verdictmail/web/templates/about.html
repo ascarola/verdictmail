@@ -11,7 +11,7 @@
       <h2 class="mt-3 fw-bold">VerdictMail</h2>
       <p class="text-muted mb-1">AI-Powered Email Threat Analysis</p>
       <span class="badge bg-secondary px-3 py-2" style="font-size:.8rem;letter-spacing:.05em">
-        v0.3.8
+        v0.3.9
       </span>
     </div>
 
@@ -149,7 +149,18 @@
 
         <div class="mb-3">
           <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="badge bg-primary">v0.3.8</span>
+            <span class="badge bg-primary">v0.3.9</span>
+            <strong>Security: hardened redirect validation</strong>
+          </div>
+          <ul class="mb-0 text-muted">
+            <li>Closed two open-redirect gaps in the post-action redirect helper: backslash payloads (<code>/\\evil.com</code>) that browsers normalize into an external host, and CR/LF/control characters used for header injection. Only single-slash-rooted local paths are now accepted.</li>
+            <li>Resolves CodeQL <code>py/url-redirection</code> alerts.</li>
+          </ul>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-secondary">v0.3.8</span>
             <strong>Blacklist (always junk) &amp; recalibrated thresholds</strong>
           </div>
           <ul class="mb-0 text-muted">
@@ -219,7 +230,7 @@
         <h5 class="mt-2 mb-1">A. Scarola</h5>
         <p class="text-muted small mb-3">Creator &amp; Developer</p>
         <div class="d-flex justify-content-center gap-4 small text-muted">
-          <span><i class="bi bi-tag me-1"></i>Version <strong class="text-light">0.3.8</strong></span>
+          <span><i class="bi bi-tag me-1"></i>Version <strong class="text-light">0.3.9</strong></span>
           <span><i class="bi bi-calendar me-1"></i>2026</span>
           <a href="https://github.com/ascarola/verdictmail" target="_blank" class="text-muted text-decoration-none"><i class="bi bi-github me-1"></i>github.com/ascarola/verdictmail</a>
         </div>
