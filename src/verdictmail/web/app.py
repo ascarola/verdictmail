@@ -845,10 +845,11 @@ def blacklist_toggle():
 @app.route("/blacklist/add", methods=["POST"])
 @require_auth
 def blacklist_add():
+    next_url = request.form.get("next", "")
     rule = _parse_rule_form()
     if rule is None:
         flash("At least one of Sender Email, Sender Domain, or Subject must be filled in.", "danger")
-        return redirect(_safe_next_url(request.form.get("next", ""), url_for("blacklist_view")))
+        return redirect(_safe_next_url(next_url, url_for("blacklist_view")))
 
     cfg = _load_config()
     bl = cfg.setdefault("blacklist", {"enabled": True, "rules": []})
@@ -864,7 +865,7 @@ def blacklist_add():
             "The blacklist takes precedence — matching mail will be junked.",
             "warning",
         )
-    return redirect(_safe_next_url(request.form.get("next", ""), url_for("blacklist_view")))
+    return redirect(_safe_next_url(next_url, url_for("blacklist_view")))
 
 
 @app.route("/blacklist/edit/<int:idx>", methods=["POST"])
