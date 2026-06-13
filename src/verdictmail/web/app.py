@@ -95,12 +95,26 @@ limiter = Limiter(
 
 
 def _safe_next_url(url: str, fallback: str) -> str:
-    """Return url only if it is a safe relative path (no scheme, no host).
-    Prevents open-redirect via protocol-relative URLs such as //evil.com."""
+    """Return url only if it is a safe local path, else the fallback.
+
+    Guards the post-login / post-action redirect against open-redirect.
+    Rejects, in order:
+      - empty or non-string input
+      - control characters (CR/LF/tab/NUL) used for header injection, and
+        backslashes that browsers normalize into a host (e.g. /\\evil.com)
+      - non-root paths and protocol-relative URLs (//evil.com)
+      - anything urlparse still sees as carrying a scheme or netloc
+    """
+    if not url or not isinstance(url, str):
+        return fallback
+    if any(c in url for c in "\r\n\t\x00") or "\\" in url:
+        return fallback
+    if not url.startswith("/") or url.startswith("//"):
+        return fallback
     parsed = urlparse(url)
-    if url.startswith("/") and not parsed.scheme and not parsed.netloc:
-        return url
-    return fallback
+    if parsed.scheme or parsed.netloc:
+        return fallback
+    return url
 
 
 def _load_config() -> dict:
