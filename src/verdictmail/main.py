@@ -242,6 +242,8 @@ def _process_message(
             "threat_level": ai_result.threat_level if ai_result else "unknown",
             "threat_types": ai_result.threat_types if ai_result else [],
             "confidence": ai_result.confidence if ai_result else 0.0,
+            "graymail_category": getattr(ai_result, "graymail_category", "none") if ai_result else "none",
+            "graymail_confidence": getattr(ai_result, "graymail_confidence", 0.0) if ai_result else 0.0,
             "signals": ai_result.signals if ai_result else {},
             "reasoning": ai_result.reasoning if ai_result else "",
             "model_name": model_name,
@@ -300,23 +302,9 @@ def main() -> None:
     imap_user = os.environ.get("IMAP_USERNAME")
     imap_pass = os.environ.get("IMAP_PASSWORD")
 
-    # Backwards-compat fallback for v0.2.x installs using the old variable names.
-    # These will be removed in v0.4.0.
-    if not imap_user and os.environ.get("GMAIL_USERNAME"):
-        print(
-            "WARNING: GMAIL_USERNAME is deprecated — rename to IMAP_USERNAME in your "
-            ".env file. Fallback support will be removed in v0.4.0.",
-            file=sys.stderr,
-        )
-        imap_user = os.environ.get("GMAIL_USERNAME")
-    if not imap_pass and os.environ.get("GMAIL_APP_PASSWORD"):
-        print(
-            "WARNING: GMAIL_APP_PASSWORD is deprecated — rename to IMAP_PASSWORD in your "
-            ".env file. Fallback support will be removed in v0.4.0.",
-            file=sys.stderr,
-        )
-        imap_pass = os.environ.get("GMAIL_APP_PASSWORD")
-
+    # NOTE: The legacy GMAIL_USERNAME / GMAIL_APP_PASSWORD environment variables
+    # (deprecated in v0.3.0) are no longer supported as of v0.4.0. Use IMAP_USERNAME
+    # and IMAP_PASSWORD.
     if not imap_user or not imap_pass:
         print(
             "ERROR: IMAP_USERNAME and IMAP_PASSWORD must be set in the environment or .env file",
@@ -356,6 +344,7 @@ def main() -> None:
     # Support new "ai:" section; fall back to legacy "ollama:" section
     ai_cfg = cfg.get("ai", cfg.get("ollama", {}))
     thresholds_cfg = cfg.get("thresholds", {})
+    graymail_cfg = cfg.get("graymail", {})
     dnsbl_cfg = cfg.get("dnsbl", {})
     worker_threads = cfg.get("worker_threads", 4)
 
@@ -406,10 +395,22 @@ def main() -> None:
     )
     logger.info("AI provider: %s | model: %s", ai_provider, ai_model)
 
+    graymail_enabled = bool(graymail_cfg.get("enabled", False))
     decision_engine = DecisionEngine(
         flag_threshold=thresholds_cfg.get("flag", 0.55),
         junk_threshold=thresholds_cfg.get("junk", 0.80),
+        graymail_enabled=graymail_enabled,
+        graymail_flag_threshold=float(graymail_cfg.get("flag_threshold", 0.60)),
+        graymail_junk_threshold=float(graymail_cfg.get("junk_threshold", 0.85)),
     )
+    if graymail_enabled:
+        logger.info(
+            "Graymail filter active: Suspect ≥ %.2f, Junk ≥ %.2f",
+            float(graymail_cfg.get("flag_threshold", 0.60)),
+            float(graymail_cfg.get("junk_threshold", 0.85)),
+        )
+    else:
+        logger.info("Graymail filter disabled")
 
     junk_folder = imap_cfg.get("junk_folder", "[Gmail]/Spam")
     suspect_folder = imap_cfg.get("suspect_folder", "")

@@ -4,11 +4,11 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.3.9-blue)
+![Version](https://img.shields.io/badge/version-0.4.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
-AI-powered email threat analysis daemon. Monitors your inbox via IMAP IDLE and runs every incoming message through a multi-stage enrichment and AI analysis pipeline — automatically passing, flagging, or moving suspicious mail to Junk.
+AI-powered email security & triage daemon. Monitors your inbox via IMAP IDLE and runs every incoming message through a multi-stage enrichment and AI analysis pipeline — automatically passing, flagging, or moving suspicious mail and unwanted graymail to Junk.
 
 ---
 
@@ -22,6 +22,7 @@ AI-powered email threat analysis daemon. Monitors your inbox via IMAP IDLE and r
 - **Aggressiveness presets**: one-click sensitivity tuning (Conservative / Default / Aggressive / Very Aggressive) with fine-grained YAML override
 - **Whitelist**: exempt trusted senders from analysis by email, domain, or subject pattern
 - **Blacklist (always junk)**: senders that ignore unsubscribe requests can be moved straight to junk without analysis — addable in one click from the audit log
+- **Graymail filter** (optional, off by default): classifies unsolicited bulk/commercial mail — promotional/marketing blasts, cold sales outreach, mass newsletters, notification digests — on an axis independent of the threat verdict, routing confident graymail to Junk and borderline graymail to Suspect
 - **Web UI**: Flask admin interface — dashboard, audit log, configuration, whitelist, blacklist, credentials, manual test, documentation
 - **Audit log**: full SQLite record of every decision including enrichment results (SPF, DKIM, DMARC, DNSBL, URLhaus, VirusTotal), AI signals, reasoning, and processing time — viewable per-message from the Audit Log page
 - **Backup & restore**: export configuration (YAML only) or a full backup ZIP (YAML + credentials) from the web UI; restore via ZIP upload with a single click
@@ -218,6 +219,9 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `whitelist.rules` | `[]` | List of whitelist rule objects |
 | `blacklist.enabled` | `true` | Master on/off for blacklist (always junk) |
 | `blacklist.rules` | `[]` | List of always-junk rule objects (same schema as whitelist) |
+| `graymail.enabled` | `false` | Master on/off for the graymail filter (unsolicited bulk/commercial mail). Off by default |
+| `graymail.flag_threshold` | `0.6` | Minimum graymail confidence to send detected graymail to the Suspect folder (must be ≤ `graymail.junk_threshold`) |
+| `graymail.junk_threshold` | `0.85` | Minimum graymail confidence to move detected graymail to Junk |
 | `timezone` | `UTC` | IANA timezone for dashboard and audit log |
 
 ---
@@ -270,6 +274,19 @@ The blacklist is the mirror image of the whitelist: matching messages skip enric
 - **Takes precedence over the whitelist** — if a sender matches both, the message is junked (the web UI warns about conflicting rules)
 - Add rules from the Blacklist page, or from any message's detail view in the Audit Log via the **Junk Sender** button
 - Logged with `action=move_to_junk` and `model_name="blacklist"` so user-mandated junk is distinguishable from AI verdicts
+
+---
+
+## Graymail filter (unsolicited marketing)
+
+Graymail is unsolicited bulk/commercial mail that isn't a security threat but isn't wanted either — promotional/marketing blasts, cold sales outreach, mass newsletters, and notification digests. The AI analyzer classifies it on a **separate axis** from the threat verdict, so marketing never inflates the threat level and genuine threat detection is unaffected.
+
+- Categories: `promotional`, `cold_outreach`, `newsletter`, `notification` (and `none` for personal/transactional mail, which always stays in the inbox)
+- The graymail axis is consulted **only when the threat verdict would otherwise pass** — a real threat always takes precedence and is never downgraded
+- Confident graymail (≥ `graymail.junk_threshold`) → Junk; borderline (≥ `graymail.flag_threshold`) → Suspect; below that → inbox
+- **Whitelisted senders are always exempt** — whitelist a sender to keep a newsletter you actually want
+- **Off by default.** Enable and tune the thresholds in the *Graymail Filter* card on the Configuration page, or via the `graymail` section in `verdictmail.yaml`
+- The category and confidence are recorded in the audit log and shown on the message detail and Manual Test pages
 
 ---
 
@@ -376,6 +393,38 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.4.0 — Graymail filter and legacy credential-variable removal
+
+Feature addition with a database migration (two new audit-log columns, applied
+automatically on first start) and **one breaking change**.
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+- **New graymail filter**: VerdictMail now classifies unsolicited bulk/commercial mail
+  (promotional/marketing blasts, cold sales outreach, mass newsletters, notification
+  digests) on an axis independent of the threat verdict, so marketing never inflates the
+  security threat level. Confident graymail is moved to **Junk**; borderline graymail
+  goes to **Suspect**. Whitelisted senders are exempt. **Off by default** — enable it and
+  tune the Suspect/Junk thresholds in the *Graymail Filter* card on the Configuration
+  page, or set `graymail.enabled: true` in `verdictmail.yaml`:
+
+  ```yaml
+  graymail:
+    enabled: true
+    flag_threshold: 0.6    # → Suspect (borderline)
+    junk_threshold: 0.85   # → Junk (confident)
+  ```
+
+- **Breaking — legacy credential variables removed**: the `GMAIL_USERNAME` /
+  `GMAIL_APP_PASSWORD` environment variables (deprecated in v0.3.0) are no longer read.
+  If your `.env` still uses them, rename them to `IMAP_USERNAME` / `IMAP_PASSWORD` before
+  upgrading or the daemon will exit on startup.
+
+---
 
 ### v0.3.9 — Security: hardened redirect validation
 
@@ -526,8 +575,8 @@ The environment variables have been renamed for provider-agnostic clarity:
 | `GMAIL_APP_PASSWORD`  | `IMAP_PASSWORD`    |
 
 **Action required:** Edit `/opt/verdictmail/.env` and rename the two variables.
-The old names still work in v0.3.0 (a deprecation warning will appear in the log)
-but will be removed in v0.4.0.
+The old names worked (with a deprecation warning) through v0.3.x and were **removed
+in v0.4.0** — `IMAP_USERNAME` and `IMAP_PASSWORD` are now required.
 
 ---
 

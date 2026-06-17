@@ -17,9 +17,22 @@ class FinalAction(str, Enum):
 
 
 class DecisionEngine:
-    def __init__(self, flag_threshold: float, junk_threshold: float):
+    def __init__(
+        self,
+        flag_threshold: float,
+        junk_threshold: float,
+        graymail_enabled: bool = False,
+        graymail_flag_threshold: float = 0.60,
+        graymail_junk_threshold: float = 0.85,
+    ):
         self.flag_threshold = flag_threshold
         self.junk_threshold = junk_threshold
+        # Graymail = unsolicited bulk/commercial mail (marketing, cold sales outreach,
+        # newsletters, notification digests). Evaluated on a separate axis and only when
+        # the threat verdict would otherwise PASS, so it never softens a real threat.
+        self.graymail_enabled = graymail_enabled
+        self.graymail_flag_threshold = graymail_flag_threshold
+        self.graymail_junk_threshold = graymail_junk_threshold
 
     def decide(self, ai_result) -> FinalAction:
         """
@@ -42,6 +55,11 @@ class DecisionEngine:
              otherwise the junk threshold would be bypassed entirely)
           6. threat_level in ('medium','high') AND confidence >= flag_threshold → FLAG
           7. everything else                                         → PASS
+
+        Graymail axis (only applied when the rules above yield PASS, and only when
+        graymail filtering is enabled — a real threat verdict always takes precedence):
+          G1. graymail_category != 'none' AND graymail_confidence >= graymail_junk_threshold → MOVE_TO_JUNK
+          G2. graymail_category != 'none' AND graymail_confidence >= graymail_flag_threshold → FLAG (Suspect)
         """
         confidence = ai_result.confidence
         ai_action = ai_result.recommended_action.lower()
@@ -79,11 +97,34 @@ class DecisionEngine:
         else:
             action = FinalAction.PASS
 
+        # Graymail axis — only when the threat verdict is PASS. A real threat verdict
+        # (FLAG/JUNK) is never downgraded or overridden by a graymail judgment.
+        graymail_category = getattr(ai_result, "graymail_category", "none")
+        graymail_confidence = getattr(ai_result, "graymail_confidence", 0.0)
+        if (
+            self.graymail_enabled
+            and action == FinalAction.PASS
+            and graymail_category != "none"
+        ):
+            if graymail_confidence >= self.graymail_junk_threshold:
+                action = FinalAction.MOVE_TO_JUNK
+            elif graymail_confidence >= self.graymail_flag_threshold:
+                action = FinalAction.FLAG
+            if action != FinalAction.PASS:
+                logger.info(
+                    "Graymail override: category=%s graymail_confidence=%.2f → %s",
+                    graymail_category,
+                    graymail_confidence,
+                    action.value,
+                )
+
         logger.info(
-            "Decision: threat=%s confidence=%.2f ai_action=%s → %s",
+            "Decision: threat=%s confidence=%.2f ai_action=%s graymail=%s/%.2f → %s",
             threat_level,
             confidence,
             ai_action,
+            graymail_category,
+            graymail_confidence,
             action.value,
         )
         return action

@@ -26,6 +26,9 @@ logger = logging.getLogger(__name__)
 
 VALID_THREAT_LEVELS = {"none", "low", "medium", "high", "critical"}
 VALID_ACTIONS = {"pass", "flag", "quarantine", "move_to_junk", "block"}
+# Graymail = unsolicited bulk/commercial mail. Harmless but unwanted; classified on a
+# separate axis from threat_level so marketing never inflates the security verdict.
+VALID_GRAYMAIL_CATEGORIES = {"none", "promotional", "cold_outreach", "newsletter", "notification"}
 
 
 @dataclass
@@ -36,6 +39,10 @@ class AiResult:
     signals: dict[str, Any]
     reasoning: str
     recommended_action: str
+    # Graymail axis — independent of threat_level. Defaults keep this backward-compatible
+    # if a model (or a legacy record) omits the fields entirely.
+    graymail_category: str = "none"
+    graymail_confidence: float = 0.0
     raw_response: str = ""
 
 
@@ -43,20 +50,24 @@ class AiResult:
 # System prompt
 # ---------------------------------------------------------------------------
 
-_SYSTEM_PROMPT = """You are VerdictMail, an expert email security analyst specialising in
-detecting genuinely malicious email. Your job is to protect users from phishing,
-credential harvesting, malware delivery, ransomware, and business email compromise (BEC).
+_SYSTEM_PROMPT = """You are VerdictMail, an expert email analyst. You perform TWO
+INDEPENDENT classifications on every message:
 
-IMPORTANT SCOPE — what you are NOT looking for:
-- Commercial newsletters, marketing emails, or promotional offers (even aggressive ones)
-- Transactional emails from known brands (order confirmations, receipts, booking details,
-  shipping notifications, account statements, hotel messages)
-- Email from brand subdomains (e.g. eg.expedia.com, em.amazon.com, mail.linkedin.com)
-  that authenticate correctly via SPF/DKIM/DMARC — these are NOT spoofing
-- Spam (unwanted but harmless mail) — Google/Gmail already filters spam separately
+  (A) THREAT ASSESSMENT — detect genuinely malicious email: phishing, credential
+      harvesting, malware/ransomware delivery, and business email compromise (BEC).
 
-THREAT LEVELS — use these strictly:
-- "none"     : No malicious indicators. Legitimate mail, including all commercial/transactional.
+  (B) GRAYMAIL ASSESSMENT — separately identify unsolicited bulk/commercial mail
+      (marketing, promotions, cold sales outreach, mass newsletters, automated
+      notification digests). Graymail is usually harmless but unwanted. It is NOT a
+      security threat and MUST NOT raise the threat level.
+
+These axes are independent. A marketing blast is threat_level "none" but may be
+graymail_category "promotional". A phishing email is a threat regardless of its
+graymail category. Judge each axis on its own.
+
+=== (A) THREAT LEVELS — use these strictly ===
+- "none"     : No malicious indicators. Legitimate mail, including ALL commercial,
+               marketing, and transactional mail (those are handled on axis B, not here).
 - "low"      : Minor anomalies only (e.g. soft-fail SPF with no other signals). Not actionable.
 - "medium"   : Moderate concern — suspicious but unconfirmed (e.g. lookalike domain, unknown
                sender with urgent request for action). Warrants human review.
@@ -64,17 +75,52 @@ THREAT LEVELS — use these strictly:
 - "critical" : Near-certain malicious intent (active phishing kit, malware attachment,
                CEO fraud, or confirmed impersonation of a known brand on unrelated domain).
 
+Do NOT treat the following as threats — they are normal mail (classify on axis B if
+commercial): commercial newsletters and promotions (even aggressive/FOMO ones);
+transactional mail from known brands (order confirmations, receipts, booking details,
+shipping notifications, account statements); mail from brand subdomains (e.g.
+eg.expedia.com, em.amazon.com, mail.linkedin.com) that authenticates via SPF/DKIM/DMARC.
+
 Display-name spoofing: only flag if the sender domain is completely unrelated to the brand
 in the display name. A subdomain of the brand (eg.expedia.com for Expedia.com) is legitimate.
 
+=== (B) GRAYMAIL CATEGORIES — classify the message's commercial/bulk nature ===
+Use "none" for personal correspondence, genuine 1:1 business mail the recipient is
+actively engaged in, and ALL transactional mail (receipts, order/shipping confirmations,
+password resets, account statements, booking details, security alerts, calendar invites).
+These belong in the inbox.
+
+- "none"          : Personal, transactional, or genuinely solicited 1:1 mail. Keep in inbox.
+- "promotional"   : Marketing/sales blasts pushing offers, discounts, coupons, loyalty
+                    rewards, or events. Often uses urgency/FOMO ("last chance", "ends
+                    tonight", "save 40%"). Mass-distributed and non-transactional.
+- "cold_outreach" : Unsolicited B2B/sales prospecting from someone with no prior
+                    relationship — discovery questions, demo offers, "quick chat" asks,
+                    SDR/BDR/"Business Development" signatures. May look 1:1 but is
+                    templated outbound sales sent broadly.
+- "newsletter"    : Bulk editorial/content newsletters and mailing-list digests sent to
+                    many subscribers.
+- "notification"  : Automated bulk notification/digest mail from platforms (social
+                    digests, activity summaries, "you have new ...") that is informational
+                    rather than transactional.
+
+Strong graymail signals: List-Unsubscribe / List-Id / Precedence:bulk headers; an
+"unsubscribe" or "opt out" footer; bulk email-service-provider infrastructure (sendgrid,
+mailchimp, marketo, hubspot, salesforce, constantcontact, etc.); templated marketing
+layout; and the absence of any prior 1:1 conversation thread. graymail_confidence is your
+certainty that the mail is unwanted bulk/commercial mail of the stated category; for
+category "none" set graymail_confidence to 0.0.
+
 You MUST respond with a single valid JSON object matching this exact schema:
 {
-  "threat_level":       string,  // one of: "none", "low", "medium", "high", "critical"
-  "threat_types":       array of strings,  // e.g. ["phishing", "credential_theft"] or []
-  "confidence":         number,  // float 0.0–1.0 indicating your certainty in this assessment
-  "signals":            object,  // REQUIRED — always populate with 3-5 key factors that informed your decision, even for legitimate mail. For clean email include: authentication result summary, sender domain assessment, content type. For threats include specific indicators.
-  "reasoning":          string,  // concise chain-of-thought explanation (1-3 sentences)
-  "recommended_action": string   // one of: "pass", "flag", "quarantine", "move_to_junk", "block"
+  "threat_level":        string,  // one of: "none", "low", "medium", "high", "critical"
+  "threat_types":        array of strings,  // e.g. ["phishing", "credential_theft"] or []
+  "confidence":          number,  // float 0.0–1.0 — your certainty in the THREAT assessment (A)
+  "graymail_category":   string,  // one of: "none", "promotional", "cold_outreach", "newsletter", "notification"
+  "graymail_confidence": number,  // float 0.0–1.0 — your certainty this is unwanted bulk/commercial mail (B)
+  "signals":             object,  // REQUIRED — always populate with 3-5 key factors that informed your decision, even for legitimate mail. For clean email include: authentication result summary, sender domain assessment, content type. For threats include specific indicators. For graymail include the bulk/commercial signals you observed.
+  "reasoning":           string,  // concise chain-of-thought explanation (1-3 sentences)
+  "recommended_action":  string   // one of: "pass", "flag", "quarantine", "move_to_junk", "block"
 }
 
 Do not output anything outside the JSON object. Do not add markdown code fences.
@@ -94,6 +140,9 @@ def _build_user_prompt(parsed_message, enrichment_result) -> str:
         "X-Mailer", "X-Originating-IP", "MIME-Version", "Content-Type",
         "Received-SPF", "Authentication-Results", "DKIM-Signature",
         "ARC-Authentication-Results",
+        # Bulk/commercial-mail indicators (graymail axis)
+        "List-Unsubscribe", "List-Id", "Precedence", "Feedback-ID",
+        "X-Campaign", "X-Mailgun-Sid", "X-CSA-Complaints",
     ]
     for h in important_headers:
         val = parsed_message.all_headers.get(h, "")
@@ -283,6 +332,21 @@ def _validate_ai_response(data: dict[str, Any]) -> AiResult:
         logger.warning("Unknown recommended_action %r — defaulting to 'pass'", recommended_action)
         recommended_action = "pass"
 
+    # Graymail axis — optional and fault-tolerant: a model that omits or mangles these
+    # fields must NOT invalidate an otherwise-good threat verdict. Degrade to "none"/0.0.
+    graymail_category = str(data.get("graymail_category", "none")).lower().strip() or "none"
+    if graymail_category not in VALID_GRAYMAIL_CATEGORIES:
+        logger.warning("Unknown graymail_category %r — defaulting to 'none'", graymail_category)
+        graymail_category = "none"
+    try:
+        graymail_confidence = float(data.get("graymail_confidence", 0.0))
+    except (TypeError, ValueError):
+        graymail_confidence = 0.0
+    graymail_confidence = min(1.0, max(0.0, graymail_confidence))
+    # A "none" category carries no actionable graymail confidence.
+    if graymail_category == "none":
+        graymail_confidence = 0.0
+
     return AiResult(
         threat_level=threat_level,
         threat_types=threat_types,
@@ -290,6 +354,8 @@ def _validate_ai_response(data: dict[str, Any]) -> AiResult:
         signals=signals,
         reasoning=reasoning,
         recommended_action=recommended_action,
+        graymail_category=graymail_category,
+        graymail_confidence=graymail_confidence,
     )
 
 

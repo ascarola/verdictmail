@@ -599,6 +599,48 @@ def config_thresholds():
     return redirect(url_for("config_editor"))
 
 
+@app.route("/config/graymail", methods=["POST"])
+@require_auth
+def config_graymail():
+    """Enable/disable the graymail filter and set its Suspect/Junk thresholds.
+
+    Graymail = unsolicited bulk/commercial mail (marketing, cold sales outreach,
+    newsletters, notification digests). This axis is independent of the threat
+    Aggressiveness presets above.
+    """
+    enabled = request.form.get("graymail_enabled") == "on"
+    try:
+        flag_val = float(request.form.get("graymail_flag_threshold", ""))
+        junk_val = float(request.form.get("graymail_junk_threshold", ""))
+    except ValueError:
+        flash("Graymail thresholds must be numbers between 0 and 1.", "danger")
+        return redirect(url_for("config_editor"))
+
+    if not (0.0 < flag_val <= 1.0 and 0.0 < junk_val <= 1.0):
+        flash("Graymail thresholds must be between 0 and 1 (exclusive of 0).", "danger")
+        return redirect(url_for("config_editor"))
+    if flag_val > junk_val:
+        flash("Graymail Suspect threshold must be ≤ the Junk threshold.", "danger")
+        return redirect(url_for("config_editor"))
+
+    try:
+        cfg = _load_config()
+        gm = cfg.setdefault("graymail", {})
+        gm["enabled"] = enabled
+        gm["flag_threshold"] = flag_val
+        gm["junk_threshold"] = junk_val
+        _save_config(cfg)
+        flash(
+            f"Graymail filter {'enabled' if enabled else 'disabled'} "
+            f"(Suspect ≥ {flag_val}, Junk ≥ {junk_val}). "
+            "Restart the daemon to apply.",
+            "success",
+        )
+    except Exception as exc:
+        flash(f"Error saving graymail settings: {exc}", "danger")
+    return redirect(url_for("config_editor"))
+
+
 # ---------------------------------------------------------------------------
 # AI provider quick-config  POST /config/ai
 # ---------------------------------------------------------------------------
@@ -1007,6 +1049,7 @@ def test():
     cfg = _load_config()
     ai_cfg = cfg.get("ai", cfg.get("ollama", {}))
     threshold_cfg = cfg.get("thresholds", {})
+    graymail_cfg = cfg.get("graymail", {})
     dnsbl_lists = cfg.get("dnsbl", {}).get("lists", [])
 
     results: dict = {}
@@ -1071,6 +1114,9 @@ def test():
             decision = DecisionEngine(
                 flag_threshold=float(threshold_cfg.get("flag", 0.55)),
                 junk_threshold=float(threshold_cfg.get("junk", 0.80)),
+                graymail_enabled=bool(graymail_cfg.get("enabled", False)),
+                graymail_flag_threshold=float(graymail_cfg.get("flag_threshold", 0.60)),
+                graymail_junk_threshold=float(graymail_cfg.get("junk_threshold", 0.85)),
             ).decide(ai)
             results["decision"] = decision
 
@@ -1386,13 +1432,6 @@ def test_imap():
         return jsonify(ok=False, msg="Connection failed. Check your credentials and IMAP settings, then check the server log for details.")
 
 
-@app.route("/credentials/test/gmail", methods=["POST"])
-@require_auth
-def test_gmail_compat():
-    """Backwards-compat redirect — remove in v0.4.0."""
-    return redirect(url_for("test_imap"), code=308)
-
-
 @app.route("/credentials/test/anthropic", methods=["POST"])
 @require_auth
 def test_anthropic():
@@ -1571,7 +1610,7 @@ def api_status():
     # Configured mailbox from .env
     try:
         env_vals = dotenv_values(str(ENV_PATH)) if ENV_PATH.exists() else {}
-        connected_mailbox = env_vals.get("IMAP_USERNAME") or env_vals.get("GMAIL_USERNAME", "—")
+        connected_mailbox = env_vals.get("IMAP_USERNAME", "—")
     except Exception:
         pass
 

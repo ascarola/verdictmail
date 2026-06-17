@@ -1,5 +1,5 @@
 [Unit]
-Description=VerdictMail AI Email Threat Analysis Daemon
+Description=VerdictMail AI Email Security & Triage Daemon
 After=network-online.target
 Wants=network-online.target
 

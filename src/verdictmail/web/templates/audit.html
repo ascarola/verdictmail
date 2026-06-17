@@ -85,7 +85,9 @@
               data-ms="{{ r['processing_ms'] or '' }}"
               data-signals="{{ r['signals'] or '' }}"
               data-raw="{{ r['raw_ai_response'] or '' }}"
-              data-enrichment="{{ r['enrichment'] or '' }}">
+              data-enrichment="{{ r['enrichment'] or '' }}"
+              data-graymail-category="{{ r['graymail_category'] or '' }}"
+              data-graymail-confidence="{{ r['graymail_confidence'] if r['graymail_confidence'] is not none else '' }}">
               Detail
             </button>
           </td>
@@ -134,6 +136,7 @@
           <dt class="col-sm-3">Confidence</dt>  <dd class="col-sm-9" id="m-confidence"></dd>
           <dt class="col-sm-3">Action</dt>      <dd class="col-sm-9" id="m-action"></dd>
           <dt class="col-sm-3">Threat types</dt><dd class="col-sm-9" id="m-types"></dd>
+          <dt class="col-sm-3">Graymail</dt>    <dd class="col-sm-9" id="m-graymail"></dd>
           <dt class="col-sm-3">Model</dt>       <dd class="col-sm-9" id="m-model"></dd>
           <dt class="col-sm-3">Processing</dt>  <dd class="col-sm-9"><span id="m-ms"></span> ms</dd>
           <dt class="col-sm-3">Reasoning</dt>   <dd class="col-sm-9" id="m-reasoning"></dd>
@@ -368,6 +371,18 @@ document.getElementById('detailModal').addEventListener('show.bs.modal', functio
   document.getElementById('m-confidence').textContent  = btn.dataset.confidence ? (parseFloat(btn.dataset.confidence)*100).toFixed(0)+'%' : '—';
   document.getElementById('m-action').textContent      = btn.dataset.action;
   document.getElementById('m-types').textContent       = btn.dataset.types;
+  (function() {
+    const cat = (btn.dataset.graymailCategory || '').trim();
+    const conf = btn.dataset.graymailConfidence;
+    const el = document.getElementById('m-graymail');
+    if (cat && cat !== 'none') {
+      const label = cat.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+      const pct = conf ? ' (' + (parseFloat(conf)*100).toFixed(0) + '%)' : '';
+      el.textContent = label + pct;
+    } else {
+      el.textContent = '—';
+    }
+  })();
   document.getElementById('m-reasoning').textContent   = btn.dataset.reasoning;
   document.getElementById('m-model').textContent       = btn.dataset.model;
   document.getElementById('m-ms').textContent          = btn.dataset.ms;

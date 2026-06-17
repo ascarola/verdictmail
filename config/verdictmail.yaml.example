@@ -36,6 +36,16 @@ thresholds:
   flag: 0.55
   junk: 0.8
 
+# Graymail filter — routes unsolicited bulk/commercial mail (marketing/promotions,
+# cold sales outreach, mass newsletters, notification digests) away from the inbox.
+# This is a SEPARATE axis from the threat thresholds above and is OFF by default.
+# Whitelisted senders are always exempt. Graymail at/above junk_threshold confidence
+# is moved to Junk; between flag_threshold and junk_threshold it goes to Suspect.
+graymail:
+  enabled: false
+  flag_threshold: 0.6    # → Suspect (borderline)
+  junk_threshold: 0.85   # → Junk (confident)
+
 timezone: UTC
 
 # ui.password_hash and ui.secret_key are generated automatically on first run.

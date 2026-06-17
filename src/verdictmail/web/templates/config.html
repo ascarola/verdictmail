@@ -198,6 +198,55 @@
   </div>
 </div>
 
+<!-- Graymail filter -->
+{% set gm = cfg.get('graymail', {}) %}
+{% set gm_enabled = gm.get('enabled', False) %}
+{% set gm_flag = gm.get('flag_threshold', 0.60) %}
+{% set gm_junk = gm.get('junk_threshold', 0.85) %}
+<div class="card mb-4" style="max-width:620px">
+  <div class="card-header"><i class="bi bi-envelope-paper me-1"></i> Graymail Filter
+    {% if gm_enabled %}<span class="badge bg-success ms-1">On</span>{% else %}<span class="badge bg-secondary ms-1">Off</span>{% endif %}
+  </div>
+  <div class="card-body">
+    <p class="small text-muted">
+      Graymail is unsolicited bulk/commercial mail that isn't a security threat but isn't
+      wanted either — promotional/marketing blasts, cold sales outreach, mass newsletters,
+      and notification digests. This is a <strong>separate axis</strong> from the threat
+      Aggressiveness above; whitelisted senders are always exempt. Confident graymail is
+      moved to <strong>Junk</strong>; borderline graymail is sent to <strong>Suspect</strong>
+      for review.
+    </p>
+    <form method="post" action="{{ url_for('config_graymail') }}">
+      <div class="form-check form-switch mb-3">
+        <input class="form-check-input" type="checkbox" role="switch"
+               id="graymail_enabled" name="graymail_enabled" {% if gm_enabled %}checked{% endif %}>
+        <label class="form-check-label" for="graymail_enabled">Enable graymail filtering</label>
+      </div>
+      <div class="row g-2 align-items-end">
+        <div class="col-auto">
+          <label for="graymail_flag_threshold" class="form-label small text-muted mb-1">Suspect threshold</label>
+          <input type="number" class="form-control form-control-sm" id="graymail_flag_threshold"
+                 name="graymail_flag_threshold" min="0.01" max="1" step="0.01"
+                 value="{{ gm_flag }}" style="width:7rem" required>
+        </div>
+        <div class="col-auto">
+          <label for="graymail_junk_threshold" class="form-label small text-muted mb-1">Junk threshold</label>
+          <input type="number" class="form-control form-control-sm" id="graymail_junk_threshold"
+                 name="graymail_junk_threshold" min="0.01" max="1" step="0.01"
+                 value="{{ gm_junk }}" style="width:7rem" required>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-outline-primary">Save Graymail Settings</button>
+        </div>
+      </div>
+      <div class="form-text">
+        Graymail-detection confidence (0–1). At or above the Junk threshold → Junk; between
+        Suspect and Junk → Suspect; below Suspect → left in the inbox. Suspect must be ≤ Junk.
+      </div>
+    </form>
+  </div>
+</div>
+
 <!-- Raw YAML editor -->
 <div class="alert alert-info small">
   <i class="bi bi-info-circle me-1"></i>

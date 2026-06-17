@@ -37,7 +37,7 @@
        style="overflow-y:auto; max-height:calc(100vh - 72px)">
 
     <h4 class="mb-1"><i class="bi bi-book me-2"></i>Documentation</h4>
-    <p class="text-muted small mb-4">VerdictMail — AI Email Threat Analysis Platform &nbsp;·&nbsp; v0.3.9</p>
+    <p class="text-muted small mb-4">VerdictMail — AI Email Security &amp; Triage Platform &nbsp;·&nbsp; v0.4.0</p>
 
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="overview">Overview</h5>
@@ -316,10 +316,10 @@
           <tr><th>Preset</th><th>Flag threshold</th><th>Junk threshold</th><th>Behaviour</th></tr>
         </thead>
         <tbody>
-          <tr><td>Conservative</td><td><code>0.75</code></td><td><code>0.92</code></td><td>Only acts on very obvious threats. Lowest false-positive rate.</td></tr>
-          <tr><td>Default</td><td><code>0.55</code></td><td><code>0.80</code></td><td>Balanced sensitivity. Recommended starting point.</td></tr>
-          <tr><td>Aggressive</td><td><code>0.38</code></td><td><code>0.65</code></td><td>Flags and junks more mail. May catch more, but expect more false positives.</td></tr>
-          <tr><td>Very Aggressive</td><td><code>0.22</code></td><td><code>0.50</code></td><td>High catch rate. Intended for high-risk environments; review the audit log frequently.</td></tr>
+          <tr><td>Conservative</td><td><code>0.80</code></td><td><code>0.97</code></td><td>Only acts on very obvious threats. Lowest false-positive rate.</td></tr>
+          <tr><td>Default</td><td><code>0.72</code></td><td><code>0.90</code></td><td>Balanced sensitivity. Recommended starting point.</td></tr>
+          <tr><td>Aggressive</td><td><code>0.65</code></td><td><code>0.82</code></td><td>Flags and junks more mail. May catch more, but expect more false positives.</td></tr>
+          <tr><td>Very Aggressive</td><td><code>0.55</code></td><td><code>0.72</code></td><td>High catch rate. Intended for high-risk environments; review the audit log frequently.</td></tr>
         </tbody>
       </table>
     </div>
@@ -424,6 +424,44 @@
     </ul>
 
     <!-- ================================================================ -->
+    <h5 class="doc-anchor" id="graymail">Graymail Filter</h5>
+    <hr class="mt-1">
+    <p class="small text-muted">
+      <strong>Graymail</strong> is unsolicited bulk/commercial mail that isn't a security
+      threat but isn't wanted either — promotional/marketing blasts, cold sales outreach,
+      mass newsletters, and notification digests. The AI analyzer classifies it on a
+      <strong>separate axis</strong> from the threat verdict (via <code>graymail_category</code>
+      and <code>graymail_confidence</code>), so marketing never inflates the threat level
+      and genuine threat detection is unaffected.
+    </p>
+    <p class="small text-muted">
+      The graymail axis is only consulted when the threat verdict would otherwise
+      <code>pass</code> — a real threat always takes precedence and is never downgraded.
+      Whitelisted senders bypass analysis entirely and are therefore always exempt.
+    </p>
+    <div class="table-responsive mb-3">
+      <table class="table table-dark table-sm table-bordered small">
+        <thead class="table-secondary">
+          <tr><th>Condition</th><th>Action</th></tr>
+        </thead>
+        <tbody>
+          <tr><td><code>graymail_category != "none"</code> and <code>graymail_confidence ≥ graymail.junk_threshold</code></td><td><span class="badge badge-junk">move_to_junk</span></td></tr>
+          <tr><td><code>graymail_category != "none"</code> and <code>graymail_confidence ≥ graymail.flag_threshold</code></td><td><span class="badge badge-flag">flag</span> (Suspect)</td></tr>
+          <tr><td><em>otherwise</em></td><td><span class="badge badge-pass">pass</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="small text-muted">
+      Categories: <code>promotional</code>, <code>cold_outreach</code>, <code>newsletter</code>,
+      <code>notification</code> (and <code>none</code> for personal/transactional mail, which is
+      always kept in the inbox). <strong>The filter is off by default.</strong> Enable it and tune
+      the Suspect/Junk thresholds in the <em>Graymail Filter</em> card on the
+      <a href="{{ url_for('config_editor') }}" class="text-info">Configuration</a> page. The
+      classification is recorded in the audit log and shown on the message detail and
+      <a href="{{ url_for('test') }}" class="text-info">Manual Test</a> pages.
+    </p>
+
+    <!-- ================================================================ -->
     <h5 class="doc-anchor" id="configuration">Configuration Reference</h5>
     <hr class="mt-1">
     <p class="small text-muted mb-3">
@@ -442,6 +480,9 @@
           <tr><td>ai.ollama_base_url</td><td>—</td><td>Required when <code>ai.provider = ollama</code>. Base URL of the Ollama instance.</td></tr>
           <tr><td>thresholds.flag</td><td><code>0.72</code></td><td>Minimum AI confidence (0–1) to FLAG a medium or high threat message. Set via the Aggressiveness presets or custom inputs on the Configuration page.</td></tr>
           <tr><td>thresholds.junk</td><td><code>0.90</code></td><td>Minimum AI confidence to move a high threat message to junk. A high-threat verdict where the AI itself recommends junking is moved at the midpoint of the two thresholds.</td></tr>
+          <tr><td>graymail.enabled</td><td><code>false</code></td><td>Master on/off switch for the <a href="#graymail" class="text-info">graymail filter</a> (unsolicited bulk/commercial mail). Off by default.</td></tr>
+          <tr><td>graymail.flag_threshold</td><td><code>0.6</code></td><td>Minimum graymail confidence (0–1) to send detected graymail to the Suspect folder. Must be ≤ <code>graymail.junk_threshold</code>.</td></tr>
+          <tr><td>graymail.junk_threshold</td><td><code>0.85</code></td><td>Minimum graymail confidence to move detected graymail to junk.</td></tr>
           <tr><td>imap.host</td><td><code>imap.gmail.com</code></td><td>IMAP server hostname.</td></tr>
           <tr><td>imap.port</td><td><code>993</code></td><td>IMAP server port (TLS).</td></tr>
           <tr><td>imap.folder</td><td><code>INBOX</code></td><td>Mailbox folder to monitor.</td></tr>
@@ -780,6 +821,8 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
         <a class="nav-link" href="#decision">Decision Logic</a>
         <a class="nav-link nav-sub" href="#aggressiveness">Aggressiveness Presets</a>
         <a class="nav-link" href="#whitelist">Whitelist</a>
+        <a class="nav-link" href="#blacklist">Blacklist</a>
+        <a class="nav-link" href="#graymail">Graymail Filter</a>
         <a class="nav-link" href="#configuration">Configuration Reference</a>
         <a class="nav-link" href="#credentials">Credentials</a>
         <a class="nav-link" href="#backup">Backup &amp; Restore</a>

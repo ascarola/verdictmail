@@ -261,6 +261,16 @@
     <dl class="row mb-0">
       <dt class="col-sm-3">Threat types</dt>
       <dd class="col-sm-9">{{ ai.threat_types | join(', ') if ai.threat_types else '(none)' }}</dd>
+      <dt class="col-sm-3">Graymail</dt>
+      <dd class="col-sm-9">
+        {% set gmc = ai.graymail_category | default('none') %}
+        {% if gmc and gmc != 'none' %}
+          <span class="badge bg-secondary">{{ gmc | replace('_', ' ') | title }}</span>
+          <span class="ms-1 text-muted">({{ '%.0f%%' % ((ai.graymail_confidence | default(0.0))*100) }} confidence)</span>
+        {% else %}
+          <span class="text-muted">(not graymail)</span>
+        {% endif %}
+      </dd>
       <dt class="col-sm-3">Recommended</dt>
       <dd class="col-sm-9">{{ ai.recommended_action }}</dd>
       <dt class="col-sm-3">Reasoning</dt>

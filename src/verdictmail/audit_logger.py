@@ -72,7 +72,9 @@ CREATE TABLE IF NOT EXISTS audit_log (
     action_taken     TEXT,
     processing_ms    INTEGER,
     raw_ai_response  TEXT,
-    enrichment       TEXT
+    enrichment       TEXT,
+    graymail_category   TEXT,
+    graymail_confidence REAL
 );
 """
 
@@ -81,6 +83,8 @@ CREATE TABLE IF NOT EXISTS audit_log (
 # exists, which we silently ignore. Safe to run on every startup.
 _MIGRATIONS = [
     ("enrichment", "ALTER TABLE audit_log ADD COLUMN enrichment TEXT"),
+    ("graymail_category", "ALTER TABLE audit_log ADD COLUMN graymail_category TEXT"),
+    ("graymail_confidence", "ALTER TABLE audit_log ADD COLUMN graymail_confidence REAL"),
 ]
 
 
@@ -112,11 +116,13 @@ def log_decision(conn: sqlite3.Connection, record: dict[str, Any]) -> None:
     INSERT INTO audit_log
         (message_id, timestamp, sender, subject, threat_level, threat_types,
          confidence, signals, reasoning, model_name, action_taken,
-         processing_ms, raw_ai_response, enrichment)
+         processing_ms, raw_ai_response, enrichment,
+         graymail_category, graymail_confidence)
     VALUES
         (:message_id, :timestamp, :sender, :subject, :threat_level, :threat_types,
          :confidence, :signals, :reasoning, :model_name, :action_taken,
-         :processing_ms, :raw_ai_response, :enrichment)
+         :processing_ms, :raw_ai_response, :enrichment,
+         :graymail_category, :graymail_confidence)
     """
     # Serialize list/dict fields to JSON text
     row = dict(record)
@@ -127,6 +133,8 @@ def log_decision(conn: sqlite3.Connection, record: dict[str, Any]) -> None:
     if isinstance(row.get("enrichment"), dict):
         row["enrichment"] = json.dumps(row["enrichment"])
     row.setdefault("enrichment", None)
+    row.setdefault("graymail_category", "none")
+    row.setdefault("graymail_confidence", 0.0)
 
     with conn:
         conn.execute(sql, row)
