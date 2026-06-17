@@ -283,7 +283,7 @@ Graymail is unsolicited bulk/commercial mail that isn't a security threat but is
 
 - Categories: `promotional`, `cold_outreach`, `newsletter`, `notification` (and `none` for personal/transactional mail, which always stays in the inbox)
 - The graymail axis is consulted **only when the threat verdict would otherwise pass** — a real threat always takes precedence and is never downgraded
-- Confident graymail (≥ `graymail.junk_threshold`) → Junk; borderline (≥ `graymail.flag_threshold`) → Suspect; below that → inbox
+- Confident graymail (≥ `graymail.junk_threshold`) → the configured Junk folder (`imap.junk_folder`); borderline (≥ `graymail.flag_threshold`) → the flag action (the Suspect folder, or starred ⭐ in place if `imap.suspect_folder` is unset); below that → inbox
 - **Whitelisted senders are always exempt** — whitelist a sender to keep a newsletter you actually want
 - **Off by default.** Enable and tune the thresholds in the *Graymail Filter* card on the Configuration page, or via the `graymail` section in `verdictmail.yaml`
 - The category and confidence are recorded in the audit log and shown on the message detail and Manual Test pages

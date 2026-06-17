@@ -446,7 +446,7 @@
         </thead>
         <tbody>
           <tr><td><code>graymail_category != "none"</code> and <code>graymail_confidence ≥ graymail.junk_threshold</code></td><td><span class="badge badge-junk">move_to_junk</span></td></tr>
-          <tr><td><code>graymail_category != "none"</code> and <code>graymail_confidence ≥ graymail.flag_threshold</code></td><td><span class="badge badge-flag">flag</span> (Suspect)</td></tr>
+          <tr><td><code>graymail_category != "none"</code> and <code>graymail_confidence ≥ graymail.flag_threshold</code></td><td><span class="badge badge-flag">flag</span> (Suspect folder, or ⭐ in place)</td></tr>
           <tr><td><em>otherwise</em></td><td><span class="badge badge-pass">pass</span></td></tr>
         </tbody>
       </table>
@@ -481,7 +481,7 @@
           <tr><td>thresholds.flag</td><td><code>0.72</code></td><td>Minimum AI confidence (0–1) to FLAG a medium or high threat message. Set via the Aggressiveness presets or custom inputs on the Configuration page.</td></tr>
           <tr><td>thresholds.junk</td><td><code>0.90</code></td><td>Minimum AI confidence to move a high threat message to junk. A high-threat verdict where the AI itself recommends junking is moved at the midpoint of the two thresholds.</td></tr>
           <tr><td>graymail.enabled</td><td><code>false</code></td><td>Master on/off switch for the <a href="#graymail" class="text-info">graymail filter</a> (unsolicited bulk/commercial mail). Off by default.</td></tr>
-          <tr><td>graymail.flag_threshold</td><td><code>0.6</code></td><td>Minimum graymail confidence (0–1) to send detected graymail to the Suspect folder. Must be ≤ <code>graymail.junk_threshold</code>.</td></tr>
+          <tr><td>graymail.flag_threshold</td><td><code>0.6</code></td><td>Minimum graymail confidence (0–1) to apply the <code>flag</code> action to detected graymail (moved to the Suspect folder, or starred in place if <code>imap.suspect_folder</code> is unset). Must be ≤ <code>graymail.junk_threshold</code>.</td></tr>
           <tr><td>graymail.junk_threshold</td><td><code>0.85</code></td><td>Minimum graymail confidence to move detected graymail to junk.</td></tr>
           <tr><td>imap.host</td><td><code>imap.gmail.com</code></td><td>IMAP server hostname.</td></tr>
           <tr><td>imap.port</td><td><code>993</code></td><td>IMAP server port (TLS).</td></tr>

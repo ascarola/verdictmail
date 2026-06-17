@@ -212,9 +212,13 @@
       Graymail is unsolicited bulk/commercial mail that isn't a security threat but isn't
       wanted either — promotional/marketing blasts, cold sales outreach, mass newsletters,
       and notification digests. This is a <strong>separate axis</strong> from the threat
-      Aggressiveness above; whitelisted senders are always exempt. Confident graymail is
-      moved to <strong>Junk</strong>; borderline graymail is sent to <strong>Suspect</strong>
-      for review.
+      Aggressiveness above; whitelisted senders are always exempt. Graymail reuses the same
+      actions and folders as threat verdicts (see <em>IMAP Folders</em> above): confident
+      graymail is moved to your <strong>Junk</strong> folder (<code>{{ cfg.get('imap', {}).get('junk_folder', '[Gmail]/Spam') }}</code>),
+      and borderline graymail takes the <strong>flag</strong> action —
+      {% if cfg.get('imap', {}).get('suspect_folder') %}moved to your Suspect folder
+      (<code>{{ cfg.get('imap', {}).get('suspect_folder') }}</code>){% else %}starred
+      (⭐) in place, since no Suspect folder is configured{% endif %} for review.
     </p>
     <form method="post" action="{{ url_for('config_graymail') }}">
       <div class="form-check form-switch mb-3">
@@ -241,7 +245,8 @@
       </div>
       <div class="form-text">
         Graymail-detection confidence (0–1). At or above the Junk threshold → Junk; between
-        Suspect and Junk → Suspect; below Suspect → left in the inbox. Suspect must be ≤ Junk.
+        the Suspect and Junk thresholds → the flag action (Suspect folder, or ⭐ in place if
+        none is set); below the Suspect threshold → left in the inbox. Suspect must be ≤ Junk.
       </div>
     </form>
   </div>
