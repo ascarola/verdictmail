@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.4.0-blue)
+![Version](https://img.shields.io/badge/version-0.4.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -393,6 +393,23 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.4.1 — Scoring calibration fix
+
+A prompt-tuning fix with **no config, schema, or breaking changes** — upgrade is just a pull
+and restart:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+Earlier builds could let the AI collapse its scoring to extremes — threat verdicts skipping
+**medium**, and graymail confidence always landing at the top of the range. That starved the
+**Suspect** folder, since both of its feeders (medium-level threats and borderline graymail)
+sit in the middle of the scale. This release retunes the analysis prompt to use the full
+0.0–1.0 range and to choose **medium** for genuine-but-unconfirmed suspicion, restoring
+Suspect-folder triage. Threat detection for clear phishing/malware is unchanged.
 
 ### v0.4.0 — Graymail filter and legacy credential-variable removal
 

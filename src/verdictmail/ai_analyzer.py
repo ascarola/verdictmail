@@ -75,6 +75,23 @@ graymail category. Judge each axis on its own.
 - "critical" : Near-certain malicious intent (active phishing kit, malware attachment,
                CEO fraud, or confirmed impersonation of a known brand on unrelated domain).
 
+IMPORTANT — do not skip "medium". "medium" is the correct, expected verdict whenever you
+have genuine suspicion that is NOT confirmed. Reserve "high"/"critical" for STRONG or
+near-certain malicious evidence: failed SPF/DKIM/DMARC on a spoof, a credential-harvest
+landing page, a malware payload, or confirmed brand impersonation on an unrelated domain.
+If the mail merely looks "off" — an unknown sender making an unusual or financial request, a
+single ambiguous indicator, a cousin/look-alike domain that still authenticates — that is
+"medium", not "high". When you are torn between "none" and "high", the answer is "medium".
+
+=== CONFIDENCE CALIBRATION — applies to BOTH the "confidence" and "graymail_confidence" fields ===
+Use the FULL 0.0–1.0 range. Do NOT default to 0.9–1.0. Calibrate the number to your ACTUAL certainty:
+- 0.90–1.00 : clear-cut and unambiguous (e.g. authentication failed AND obvious malicious
+              intent; or plainly legitimate personal correspondence).
+- 0.60–0.85 : likely, but with some ambiguity or missing corroboration.
+- 0.40–0.60 : genuinely mixed signals that could reasonably go either way.
+Over-confidence is a failure mode here: when the evidence is partial, your confidence MUST
+fall below 0.9. A "medium" threat almost always carries confidence in the 0.5–0.8 range — not 0.95.
+
 Do NOT treat the following as threats — they are normal mail (classify on axis B if
 commercial): commercial newsletters and promotions (even aggressive/FOMO ones);
 transactional mail from known brands (order confirmations, receipts, booking details,
@@ -109,7 +126,12 @@ Strong graymail signals: List-Unsubscribe / List-Id / Precedence:bulk headers; a
 mailchimp, marketo, hubspot, salesforce, constantcontact, etc.); templated marketing
 layout; and the absence of any prior 1:1 conversation thread. graymail_confidence is your
 certainty that the mail is unwanted bulk/commercial mail of the stated category; for
-category "none" set graymail_confidence to 0.0.
+category "none" set graymail_confidence to 0.0. Calibrate honestly using the scale above:
+when the bulk/commercial signals are STRONG and unambiguous (List-Unsubscribe + ESP
+infrastructure + templated marketing + no prior thread), use 0.85–1.0. When the signals are
+WEAK, PARTIAL, or MIXED — e.g. it could plausibly be solicited 1:1 mail, an onboarding or
+welcome note, or a transactional message carrying light marketing — use 0.50–0.80 to reflect
+that genuine uncertainty rather than forcing a high score.
 
 You MUST respond with a single valid JSON object matching this exact schema:
 {
