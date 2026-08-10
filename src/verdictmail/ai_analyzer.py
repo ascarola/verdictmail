@@ -2,9 +2,11 @@
 ai_analyzer.py — Multi-provider AI email threat analysis.
 
 Supported providers:
-  - "ollama"     — local Ollama instance (default)
+  - "ollama"     — local Ollama instance (default; no API key required)
   - "anthropic"  — Anthropic Claude API
-  - "openai"     — OpenAI Chat Completions API
+  - "openai"     — OpenAI Chat Completions API, OR any OpenAI-compatible endpoint
+                   (self-hosted AI gateway, LiteLLM, vLLM, LM Studio, etc.). Point it
+                   at a gateway by setting `ai.base_url` and an `OPENAI_API_KEY`.
 """
 
 from __future__ import annotations
@@ -556,13 +558,19 @@ class AiAnalyzer:
             raise RuntimeError("openai package not installed. Run: pip install openai")
 
         user_prompt = _build_user_prompt(parsed_message, enrichment_result)
-        client = OpenAI(api_key=self.api_key, timeout=self.timeout)
+        # base_url lets this same provider target any OpenAI-compatible endpoint —
+        # a self-hosted AI gateway, LiteLLM, vLLM, etc. When empty, the SDK uses the
+        # official OpenAI cloud endpoint, preserving prior behavior.
+        client_kwargs: dict[str, Any] = {"api_key": self.api_key, "timeout": self.timeout}
+        if self.base_url:
+            client_kwargs["base_url"] = self.base_url
+        client = OpenAI(**client_kwargs)
         last_exc: Optional[Exception] = None
 
         for attempt in range(self.MAX_RETRIES):
             delay = self.BASE_DELAY * (2 ** attempt) + random.uniform(0, 1)
             try:
-                response = client.chat.completions.create(
+                create_kwargs: dict[str, Any] = dict(
                     model=self.model,
                     messages=[
                         {"role": "system", "content": _SYSTEM_PROMPT},
@@ -571,8 +579,20 @@ class AiAnalyzer:
                     response_format={"type": "json_object"},
                     temperature=0.1,
                 )
+                # Disable model "thinking" when targeting a self-hosted / OpenAI-
+                # compatible gateway (base_url set). VerdictMail discards reasoning
+                # entirely, so it is pure latency and wasted tokens here. `think` is
+                # passed straight through to Ollama-backed models and is a harmless
+                # no-op for models without a thinking mode. Deliberately NOT sent to
+                # OpenAI cloud (base_url empty), which rejects unknown body fields and
+                # whose reasoning models we would not want to disable anyway.
+                if self.base_url:
+                    create_kwargs["extra_body"] = {"think": False}
+                response = client.chat.completions.create(**create_kwargs)
                 content = response.choices[0].message.content
-                parsed_json = json.loads(content)
+                # _extract_json (not a bare json.loads) so OpenAI-compatible gateways
+                # and local models that wrap/fence output are handled gracefully.
+                parsed_json = _extract_json(content)
                 ai_result = _validate_ai_response(parsed_json)
                 ai_result.raw_response = content
                 logger.info(

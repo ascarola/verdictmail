@@ -11,7 +11,7 @@
       <h2 class="mt-3 fw-bold">VerdictMail</h2>
       <p class="text-muted mb-1">AI-Powered Email Security &amp; Triage</p>
       <span class="badge bg-secondary px-3 py-2" style="font-size:.8rem;letter-spacing:.05em">
-        v0.4.1
+        v0.5.0
       </span>
     </div>
 
@@ -149,7 +149,19 @@
 
         <div class="mb-3">
           <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="badge bg-primary">v0.4.1</span>
+            <span class="badge bg-primary">v0.5.0</span>
+            <strong>OpenAI-compatible AI gateway support</strong>
+          </div>
+          <ul class="mb-0 text-muted">
+            <li>The <code>openai</code> provider can now target <strong>any OpenAI-compatible endpoint</strong> — a self-hosted AI gateway, LiteLLM, vLLM, LM Studio, etc. — by setting <code>ai.base_url</code> and putting the endpoint's key in <code>.env</code> as <code>OPENAI_API_KEY</code>. Route inference through one keyed gateway or keep it entirely on your own network.</li>
+            <li>When <code>ai.base_url</code> is set, VerdictMail sends <code>"think": false</code> to disable model reasoning — pure latency and wasted tokens for VerdictMail, which discards reasoning anyway. In testing <code>gemma4:26b</code> dropped from ~40 s to a few seconds per message. Harmless no-op for non-thinking models; never sent to OpenAI cloud.</li>
+            <li><strong>No breaking changes.</strong> Direct-Ollama (<code>provider: ollama</code>) and OpenAI-cloud (no <code>base_url</code>) setups behave exactly as before; the new behavior activates only when you set <code>ai.base_url</code>.</li>
+          </ul>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-secondary">v0.4.1</span>
             <strong>Scoring calibration fix (restores Suspect-folder triage)</strong>
           </div>
           <ul class="mb-0 text-muted">
@@ -256,7 +268,7 @@
         <h5 class="mt-2 mb-1">A. Scarola</h5>
         <p class="text-muted small mb-3">Creator &amp; Developer</p>
         <div class="d-flex justify-content-center gap-4 small text-muted">
-          <span><i class="bi bi-tag me-1"></i>Version <strong class="text-light">0.4.1</strong></span>
+          <span><i class="bi bi-tag me-1"></i>Version <strong class="text-light">0.5.0</strong></span>
           <span><i class="bi bi-calendar me-1"></i>2026</span>
           <a href="https://github.com/ascarola/verdictmail" target="_blank" class="text-muted text-decoration-none"><i class="bi bi-github me-1"></i>github.com/ascarola/verdictmail</a>
         </div>

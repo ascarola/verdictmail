@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.4.1-blue)
+![Version](https://img.shields.io/badge/version-0.5.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -205,6 +205,7 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `ai.provider` | `openai` | AI backend: `openai`, `anthropic`, or `ollama` |
 | `ai.model` | `gpt-4o-mini` | Model name passed to the provider |
 | `ai.timeout_seconds` | `120` | Per-request AI timeout |
+| `ai.base_url` | *(absent)* | Override the endpoint for the `openai` provider. Point it at any OpenAI-compatible server — a self-hosted AI gateway, LiteLLM, vLLM, LM Studio, etc. When absent, the official OpenAI cloud endpoint is used. See [Using an OpenAI-compatible gateway](#using-an-openai-compatible-gateway). |
 | `ai.ollama_base_url` | `http://localhost:11434` | Ollama base URL (ollama provider only) |
 | `thresholds.flag` | `0.72` | Minimum confidence to flag medium/high threat. Set via the Aggressiveness presets or custom threshold inputs on the Configuration page. |
 | `thresholds.junk` | `0.90` | Minimum confidence to move high threat to Junk. Set via the Aggressiveness presets or custom threshold inputs on the Configuration page. |
@@ -223,6 +224,38 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `graymail.flag_threshold` | `0.6` | Minimum graymail confidence to send detected graymail to the Suspect folder (must be ≤ `graymail.junk_threshold`) |
 | `graymail.junk_threshold` | `0.85` | Minimum graymail confidence to move detected graymail to Junk |
 | `timezone` | `UTC` | IANA timezone for dashboard and audit log |
+
+---
+
+## Using an OpenAI-compatible gateway
+
+VerdictMail's `openai` provider speaks the standard OpenAI Chat Completions protocol, so it can target **any OpenAI-compatible endpoint** — not just OpenAI's cloud. That includes self-hosted AI gateways, [LiteLLM](https://github.com/BerriAI/litellm), [vLLM](https://github.com/vllm-project/vllm), LM Studio, and similar proxies. This lets you keep inference on your own network (or route it through a single keyed gateway) while still benefiting from a hosted model's schema reliability.
+
+**Migrating from a direct Ollama setup:** if you currently run `provider: ollama` (keyless, pointed straight at an Ollama box) and want to move behind a gateway that requires an API key, you do **not** touch your Ollama config — you switch providers:
+
+1. Set the gateway key in `/opt/verdictmail/.env`:
+   ```dotenv
+   OPENAI_API_KEY=your-gateway-api-key
+   ```
+2. Point the `openai` provider at the gateway in `config/verdictmail.yaml`:
+   ```yaml
+   ai:
+     provider: openai
+     model: gemma4:26b                       # any model id the gateway exposes
+     base_url: http://192.168.1.243:5010/v1  # your gateway's OpenAI base URL (note the /v1)
+     timeout_seconds: 180
+     ollama_base_url: http://192.168.1.62:11434  # kept for easy rollback (ignored while provider=openai)
+   ```
+3. Restart: `systemctl restart verdictmail`. The startup log line confirms the target:
+   `AI provider: openai | model: gemma4:26b | base_url: http://192.168.1.243:5010/v1`
+
+**Rollback** is a one-line change: set `provider: ollama` and restart — your `ollama_base_url` is still there.
+
+Notes:
+- The `base_url` must include the API version path your gateway expects (usually `/v1`).
+- The gateway must implement `POST /chat/completions` with `response_format: {"type": "json_object"}`. VerdictMail tolerates responses that fence or wrap the JSON.
+- When `base_url` is set, VerdictMail sends `"think": false` in the request body to disable model "thinking"/reasoning — it discards reasoning entirely, so on Ollama-backed models this is pure latency and wasted tokens (e.g. `gemma4:26b` drops from ~40 s to a few seconds per message). The field is passed straight through to Ollama and is a harmless no-op for models without a thinking mode. It is **not** sent to OpenAI cloud (`base_url` absent), which rejects unknown fields and whose reasoning models you would not want to disable.
+- Direct-Ollama users who need no key can keep `provider: ollama` unchanged — nothing about that path has changed.
 
 ---
 
@@ -393,6 +426,34 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.5.0 — OpenAI-compatible AI gateway support
+
+A backward-compatible feature release with **no breaking changes** — upgrade is a pull and
+restart:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+The `openai` provider can now target **any OpenAI-compatible endpoint** — a self-hosted AI
+gateway, LiteLLM, vLLM, LM Studio, etc. — by setting `ai.base_url` in
+`config/verdictmail.yaml` and putting the endpoint's key in `.env` as `OPENAI_API_KEY`. This
+lets you route inference through a single keyed gateway (or keep it entirely on your own
+network) instead of straight-to-Ollama or straight-to-OpenAI-cloud. See
+[Using an OpenAI-compatible gateway](#using-an-openai-compatible-gateway).
+
+When `ai.base_url` is set, VerdictMail also sends `"think": false` in the request body to
+disable model reasoning. VerdictMail discards reasoning entirely, so on Ollama-backed models
+this is pure latency and wasted tokens — in testing, `gemma4:26b` dropped from ~40 s to a few
+seconds per message. The field is a harmless no-op for models without a thinking mode and is
+never sent to OpenAI cloud (`base_url` absent), which rejects unknown fields.
+
+**Nothing changes for existing users.** Direct-Ollama setups (`provider: ollama`) and
+OpenAI-cloud setups (`provider: openai`, no `base_url`) behave exactly as before — the new
+behavior only activates when you set `ai.base_url`. Rollback from a gateway is a one-line
+change: set `provider` back to `ollama` and restart.
 
 ### v0.4.1 — Scoring calibration fix
 

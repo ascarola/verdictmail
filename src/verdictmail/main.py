@@ -378,7 +378,9 @@ def main() -> None:
     ai_provider = ai_cfg.get("provider", "ollama")
     ai_model = ai_cfg.get("model", "qwen2.5-coder:14b")
     ai_timeout = int(ai_cfg.get("timeout_seconds", 120))
-    # Resolve API key from environment based on provider
+    # Resolve API key from environment based on provider. Ollama is keyless by
+    # default; an OpenAI-compatible gateway reuses OPENAI_API_KEY (it speaks the
+    # OpenAI protocol regardless of what it proxies to).
     if ai_provider == "anthropic":
         ai_api_key = os.environ.get("ANTHROPIC_API_KEY", "")
     elif ai_provider == "openai":
@@ -386,14 +388,24 @@ def main() -> None:
     else:
         ai_api_key = os.environ.get("OLLAMA_API_KEY", "")
 
+    # Resolve base_url per-provider.
+    #   ollama  -> ollama_base_url (defaults to the local Ollama instance).
+    #   openai  -> base_url when set, else empty (SDK uses OpenAI cloud). Set
+    #              base_url to target a self-hosted OpenAI-compatible AI gateway.
+    #   others  -> base_url when set, else empty (SDK default endpoint).
+    if ai_provider == "ollama":
+        ai_base_url = ai_cfg.get("ollama_base_url", ai_cfg.get("base_url", "http://localhost:11434"))
+    else:
+        ai_base_url = ai_cfg.get("base_url", "")
+
     ai_analyzer = AiAnalyzer(
         provider=ai_provider,
         model=ai_model,
         timeout_seconds=ai_timeout,
-        base_url=ai_cfg.get("ollama_base_url", ai_cfg.get("base_url", "http://localhost:11434")),
+        base_url=ai_base_url,
         api_key=ai_api_key,
     )
-    logger.info("AI provider: %s | model: %s", ai_provider, ai_model)
+    logger.info("AI provider: %s | model: %s | base_url: %s", ai_provider, ai_model, ai_base_url or "(sdk default)")
 
     graymail_enabled = bool(graymail_cfg.get("enabled", False))
     decision_engine = DecisionEngine(

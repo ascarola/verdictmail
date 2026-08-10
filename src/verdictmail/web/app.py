@@ -652,6 +652,8 @@ def config_ai():
     model = request.form.get("ai_model", "").strip()
     timeout = request.form.get("ai_timeout", "120").strip()
     ollama_base_url = request.form.get("ollama_base_url", "").strip()
+    # openai-compatible gateway endpoint (blank = OpenAI cloud default)
+    base_url = request.form.get("base_url", "").strip()
 
     try:
         cfg = _load_config()
@@ -666,6 +668,13 @@ def config_ai():
             pass
         if provider == "ollama" and ollama_base_url:
             ai_section["ollama_base_url"] = ollama_base_url
+        # base_url applies to the openai provider (gateway). Set when provided;
+        # clear it when blank so the provider falls back to the cloud default.
+        if provider == "openai":
+            if base_url:
+                ai_section["base_url"] = base_url
+            else:
+                ai_section.pop("base_url", None)
         _save_config(cfg)
         flash(f"AI provider set to '{provider}' (model: {ai_section.get('model', '?')}). Restart the daemon to apply.", "success")
     except Exception as exc:
@@ -1102,11 +1111,19 @@ def test():
             else:
                 api_key = env_vals.get("OLLAMA_API_KEY", "")
 
+            # Resolve base_url per-provider, matching main.py: ollama uses
+            # ollama_base_url; openai (incl. OpenAI-compatible gateways) uses
+            # base_url when set, else the SDK's own default endpoint.
+            if ai_provider == "ollama":
+                ai_base_url = ai_cfg.get("ollama_base_url", ai_cfg.get("base_url", "http://localhost:11434"))
+            else:
+                ai_base_url = ai_cfg.get("base_url", "")
+
             ai = AiAnalyzer(
                 provider=ai_provider,
                 model=ai_cfg.get("model", "qwen2.5-coder:14b"),
                 timeout_seconds=int(ai_cfg.get("timeout_seconds", 120)),
-                base_url=ai_cfg.get("ollama_base_url", ai_cfg.get("base_url", "http://localhost:11434")),
+                base_url=ai_base_url,
                 api_key=api_key,
             ).analyze(parsed, enriched)
             results["ai"] = ai

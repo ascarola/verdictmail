@@ -3,6 +3,11 @@ ai:
   provider: openai
   model: gpt-4o-mini
   timeout_seconds: 120
+  # base_url (openai provider only): override the endpoint to target any
+  # OpenAI-compatible server — a self-hosted AI gateway, LiteLLM, vLLM, etc.
+  # Include the version path (usually /v1). Omit to use OpenAI's cloud endpoint.
+  # Put the gateway's key in .env as OPENAI_API_KEY.
+  #   base_url: http://192.168.1.243:5010/v1
   # Required only when provider = ollama
   ollama_base_url: http://localhost:11434
 

@@ -140,7 +140,7 @@ else
     echo -e "${BOLD}Enter your AI provider API key.${RESET}"
     echo -e "Leave blank any providers you are not using.\n"
 
-    read -rsp "  OpenAI API key (sk-...): " OPENAI_KEY
+    read -rsp "  OpenAI API key (sk-...  or your gateway key): " OPENAI_KEY
     echo
     read -rsp "  Anthropic API key (sk-ant-...): " ANTHROPIC_KEY
     echo
@@ -222,10 +222,22 @@ else
         OLLAMA_BASE_URL="${OLLAMA_BASE_URL:-http://localhost:11434}"
     fi
 
+    # The openai provider can target any OpenAI-compatible endpoint. Leaving this
+    # blank uses OpenAI cloud; set it to a self-hosted AI gateway (LiteLLM, vLLM,
+    # etc.) to keep inference on your own network. The key entered above as the
+    # OpenAI API key is reused for the gateway.
+    OPENAI_BASE_URL=""
+    if [[ "$AI_PROVIDER" == "openai" ]]; then
+        echo
+        echo -e "  Optional: OpenAI-compatible gateway URL (self-hosted AI gateway,"
+        echo -e "  LiteLLM, vLLM, ...). Include the version path, e.g. http://host:5010/v1."
+        read -rp "  Base URL [blank = OpenAI cloud]: " OPENAI_BASE_URL
+    fi
+
     read -rp "  Model name [${DEFAULT_MODEL}]: " AI_MODEL
     AI_MODEL="${AI_MODEL:-$DEFAULT_MODEL}"
 
-    # Patch provider, model, and optional Ollama URL into yaml
+    # Patch provider, model, and optional base URLs into yaml
     /opt/verdictmail/venv/bin/python3 - <<PYEOF
 import yaml, pathlib
 p = pathlib.Path("/opt/verdictmail/config/verdictmail.yaml")
@@ -234,6 +246,8 @@ cfg.setdefault("ai", {})["provider"] = "${AI_PROVIDER}"
 cfg["ai"]["model"] = "${AI_MODEL}"
 if "${OLLAMA_BASE_URL}":
     cfg["ai"]["ollama_base_url"] = "${OLLAMA_BASE_URL}"
+if "${OPENAI_BASE_URL}":
+    cfg["ai"]["base_url"] = "${OPENAI_BASE_URL}"
 p.write_text(yaml.dump(cfg, default_flow_style=False, allow_unicode=True))
 PYEOF
 
@@ -310,9 +324,11 @@ PYEOF
 
     OLLAMA_MSG=""
     [[ -n "$OLLAMA_BASE_URL" ]] && OLLAMA_MSG=", ollama_url=${OLLAMA_BASE_URL}"
+    BASEURL_MSG=""
+    [[ -n "$OPENAI_BASE_URL" ]] && BASEURL_MSG=", base_url=${OPENAI_BASE_URL}"
     SUSPECT_MSG=""
     [[ -n "$SUSPECT_FOLDER" ]] && SUSPECT_MSG=", suspect_folder=${SUSPECT_FOLDER}"
-    success "verdictmail.yaml configured (provider=${AI_PROVIDER}, model=${AI_MODEL}${OLLAMA_MSG}, timezone=${TZ_NAME}${SUSPECT_MSG})."
+    success "verdictmail.yaml configured (provider=${AI_PROVIDER}, model=${AI_MODEL}${OLLAMA_MSG}${BASEURL_MSG}, timezone=${TZ_NAME}${SUSPECT_MSG})."
 fi
 
 # -----------------------------------------------------------------------------

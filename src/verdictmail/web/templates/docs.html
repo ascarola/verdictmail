@@ -37,7 +37,7 @@
        style="overflow-y:auto; max-height:calc(100vh - 72px)">
 
     <h4 class="mb-1"><i class="bi bi-book me-2"></i>Documentation</h4>
-    <p class="text-muted small mb-4">VerdictMail — AI Email Security &amp; Triage Platform &nbsp;·&nbsp; v0.4.1</p>
+    <p class="text-muted small mb-4">VerdictMail — AI Email Security &amp; Triage Platform &nbsp;·&nbsp; v0.5.0</p>
 
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="overview">Overview</h5>
@@ -477,6 +477,7 @@
           <tr><td>ai.provider</td><td><code>openai</code></td><td>AI backend: <code>openai</code>, <code>anthropic</code>, or <code>ollama</code>.</td></tr>
           <tr><td>ai.model</td><td><code>gpt-4o-mini</code></td><td>Model name passed to the provider. For Ollama, 20B+ parameter models (e.g. <code>gemma4:26b</code>) are strongly recommended for reliable JSON schema adherence; smaller models such as <code>qwen2.5:7b</code> may produce malformed responses.</td></tr>
           <tr><td>ai.timeout_seconds</td><td><code>120</code></td><td>Per-request AI timeout. Increase for slow local Ollama models.</td></tr>
+          <tr><td>ai.base_url</td><td>—</td><td>Override the endpoint for the <code>openai</code> provider to target any OpenAI-compatible server (self-hosted AI gateway, LiteLLM, vLLM, etc.). Include the version path (usually <code>/v1</code>). When set, VerdictMail also sends <code>"think": false</code> to disable model reasoning (latency win on Ollama-backed models; ignored by models without a thinking mode). Blank uses OpenAI cloud.</td></tr>
           <tr><td>ai.ollama_base_url</td><td>—</td><td>Required when <code>ai.provider = ollama</code>. Base URL of the Ollama instance.</td></tr>
           <tr><td>thresholds.flag</td><td><code>0.72</code></td><td>Minimum AI confidence (0–1) to FLAG a medium or high threat message. Set via the Aggressiveness presets or custom inputs on the Configuration page.</td></tr>
           <tr><td>thresholds.junk</td><td><code>0.90</code></td><td>Minimum AI confidence to move a high threat message to junk. A high-threat verdict where the AI itself recommends junking is moved at the midpoint of the two thresholds.</td></tr>
@@ -520,7 +521,7 @@
               <td>Password for your IMAP account. For Gmail: generate an App Password at
                   <strong>Google Account → Security → 2-Step Verification → App passwords</strong>
                   (not your account password). IMAP must be enabled in your provider's settings.</td></tr>
-          <tr><td><code>OPENAI_API_KEY</code></td><td>If provider = openai</td><td>OpenAI API key.</td></tr>
+          <tr><td><code>OPENAI_API_KEY</code></td><td>If provider = openai</td><td>OpenAI API key — or the API key for your OpenAI-compatible gateway when <code>ai.base_url</code> is set.</td></tr>
           <tr><td><code>ANTHROPIC_API_KEY</code></td><td>If provider = anthropic</td><td>Anthropic API key.</td></tr>
           <tr><td><code>OLLAMA_API_KEY</code></td><td>If Ollama requires auth</td><td>Optional; most local Ollama instances don't need this.</td></tr>
           <tr><td><code>URLHAUS_API_KEY</code></td><td>Optional</td><td>Free API key from <a href="https://abuse.ch/" class="text-info" target="_blank">abuse.ch</a> for URLhaus malware URL lookups. Register, then copy the key from your profile. URLhaus lookups are silently skipped if this is not set.</td></tr>
