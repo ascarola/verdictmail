@@ -11,7 +11,7 @@
       <h2 class="mt-3 fw-bold">VerdictMail</h2>
       <p class="text-muted mb-1">AI-Powered Email Security &amp; Triage</p>
       <span class="badge bg-secondary px-3 py-2" style="font-size:.8rem;letter-spacing:.05em">
-        v0.5.0
+        v0.5.1
       </span>
     </div>
 
@@ -149,7 +149,17 @@
 
         <div class="mb-3">
           <div class="d-flex align-items-center gap-2 mb-1">
-            <span class="badge bg-primary">v0.5.0</span>
+            <span class="badge bg-primary">v0.5.1</span>
+            <strong>Fetch models for the OpenAI provider</strong>
+          </div>
+          <ul class="mb-0 text-muted">
+            <li>The <strong>Fetch available models</strong> button on the Configuration page (previously Ollama-only) now also works for the <code>openai</code> provider — it queries <code>GET {base_url}/models</code> on your configured endpoint (OpenAI cloud or a self-hosted gateway) and populates the model dropdown, so you can pick from what the endpoint advertises instead of typing model ids by hand.</li>
+          </ul>
+        </div>
+
+        <div class="mb-3">
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <span class="badge bg-secondary">v0.5.0</span>
             <strong>OpenAI-compatible AI gateway support</strong>
           </div>
           <ul class="mb-0 text-muted">
@@ -268,7 +278,7 @@
         <h5 class="mt-2 mb-1">A. Scarola</h5>
         <p class="text-muted small mb-3">Creator &amp; Developer</p>
         <div class="d-flex justify-content-center gap-4 small text-muted">
-          <span><i class="bi bi-tag me-1"></i>Version <strong class="text-light">0.5.0</strong></span>
+          <span><i class="bi bi-tag me-1"></i>Version <strong class="text-light">0.5.1</strong></span>
           <span><i class="bi bi-calendar me-1"></i>2026</span>
           <a href="https://github.com/ascarola/verdictmail" target="_blank" class="text-muted text-decoration-none"><i class="bi bi-github me-1"></i>github.com/ascarola/verdictmail</a>
         </div>

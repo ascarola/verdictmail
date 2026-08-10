@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.5.0-blue)
+![Version](https://img.shields.io/badge/version-0.5.1-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -426,6 +426,21 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.5.1 — Fetch models for the OpenAI provider
+
+A small UI addition to v0.5.0 — pull and restart:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+The Configuration page's **Fetch available models** button (previously Ollama-only) now also works
+for the `openai` provider: it queries the standard `GET {base_url}/models` on your configured
+endpoint — OpenAI cloud or a self-hosted gateway — and populates the model dropdown so you can
+pick from what the endpoint actually advertises instead of typing model ids by hand. No config,
+schema, or breaking changes.
 
 ### v0.5.0 — OpenAI-compatible AI gateway support
 

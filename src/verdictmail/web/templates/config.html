@@ -32,9 +32,9 @@
                 oninput="filterModelDropdown(this.value)"
                 onfocus="openModelDropdown(this.value)">
               <button type="button" id="fetchModelsBtn" class="btn btn-outline-secondary"
-                      title="Fetch available models from Ollama"
-                      {% if ai_provider != 'ollama' %}style="display:none"{% endif %}
-                      onclick="fetchOllamaModels()">
+                      title="Fetch available models"
+                      {% if ai_provider not in ['ollama', 'openai'] %}style="display:none"{% endif %}
+                      onclick="fetchModels()">
                 <i class="bi bi-arrow-repeat" id="fetchModelsIcon"></i>
               </button>
             </div>
@@ -379,8 +379,12 @@ function updateModelPlaceholder() {
   modelEl.placeholder = modelSuggestions[provider] || '';
   urlRow.style.display   = provider === 'ollama' ? '' : 'none';
   openaiUrlRow.style.display = provider === 'openai' ? '' : 'none';
-  fetchBtn.style.display = provider === 'ollama' ? '' : 'none';
-  if (provider !== 'ollama') {
+  const canFetch = (provider === 'ollama' || provider === 'openai');
+  fetchBtn.style.display = canFetch ? '' : 'none';
+  fetchBtn.title = provider === 'openai'
+    ? 'Fetch available models from the OpenAI endpoint / gateway'
+    : 'Fetch available models from Ollama';
+  if (!canFetch) {
     fetchMsg.textContent = '';
     closeModelDropdown();
     _ollamaModels = [];
@@ -430,10 +434,19 @@ document.addEventListener('click', function(e) {
   if (wrap && !wrap.contains(e.target)) closeModelDropdown();
 });
 
-// ── Fetch from Ollama ────────────────────────────────────────────────────────
+// ── Fetch available models (Ollama or OpenAI-compatible) ─────────────────────
 
-function fetchOllamaModels() {
-  const url  = document.querySelector('[name=ollama_base_url]').value.trim();
+function fetchModels() {
+  const provider = document.getElementById('aiProvider').value;
+  let endpoint, url;
+  if (provider === 'openai') {
+    endpoint = '/api/openai-models';
+    const el = document.querySelector('[name=base_url]');
+    url = el ? el.value.trim() : '';   // blank => backend uses OpenAI cloud
+  } else {
+    endpoint = '/api/ollama-models';
+    url = document.querySelector('[name=ollama_base_url]').value.trim();
+  }
   const icon = document.getElementById('fetchModelsIcon');
   const btn  = document.getElementById('fetchModelsBtn');
   const msg  = document.getElementById('fetchModelsMsg');
@@ -444,7 +457,7 @@ function fetchOllamaModels() {
   msg.className = 'form-text text-muted';
   closeModelDropdown();
 
-  fetch('/api/ollama-models?url=' + encodeURIComponent(url))
+  fetch(endpoint + '?url=' + encodeURIComponent(url))
     .then(r => r.json())
     .then(data => {
       if (data.ok && data.models.length) {

@@ -1591,6 +1591,45 @@ def api_ollama_models():
 
 
 # ---------------------------------------------------------------------------
+# OpenAI-compatible model list  GET /api/openai-models
+# ---------------------------------------------------------------------------
+
+@app.route("/api/openai-models")
+@require_auth
+def api_openai_models():
+    """Return the models advertised by an OpenAI-compatible endpoint.
+
+    Uses the standard GET {base_url}/models, authenticated with OPENAI_API_KEY
+    from .env. Accepts an optional ?url= (the base_url currently typed in the
+    form, before saving); when blank, falls back to OpenAI cloud. Works for
+    self-hosted AI gateways, LiteLLM, vLLM, etc.
+    """
+    base_url = request.args.get("url", "").strip().rstrip("/")
+    if base_url:
+        _p = urlparse(base_url)
+        if _p.scheme not in ("http", "https") or not _p.netloc:
+            return jsonify(ok=False, models=[], msg="Invalid URL: must be http:// or https://")
+    else:
+        base_url = "https://api.openai.com/v1"
+    env_vals = dotenv_values(str(ENV_PATH)) if ENV_PATH.exists() else {}
+    api_key = env_vals.get("OPENAI_API_KEY", "")
+    try:
+        import httpx
+        headers = {"Authorization": f"Bearer {api_key}"} if api_key else {}
+        resp = httpx.get(f"{base_url}/models", headers=headers, timeout=8)
+        if resp.status_code == 200:
+            models = sorted(m.get("id") for m in resp.json().get("data", []) if m.get("id"))
+            if not models:
+                return jsonify(ok=False, models=[], msg="Endpoint returned no models.")
+            return jsonify(ok=True, models=models)
+        if resp.status_code in (401, 403):
+            return jsonify(ok=False, models=[], msg=f"HTTP {resp.status_code} — check the OpenAI API key on the Credentials page.")
+        return jsonify(ok=False, models=[], msg=f"Endpoint returned HTTP {resp.status_code}")
+    except Exception as exc:
+        return jsonify(ok=False, models=[], msg=str(exc))
+
+
+# ---------------------------------------------------------------------------
 # Live status API  GET /api/status
 # ---------------------------------------------------------------------------
 
