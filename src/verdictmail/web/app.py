@@ -1626,7 +1626,10 @@ def api_openai_models():
             return jsonify(ok=False, models=[], msg=f"HTTP {resp.status_code} — check the OpenAI API key on the Credentials page.")
         return jsonify(ok=False, models=[], msg=f"Endpoint returned HTTP {resp.status_code}")
     except Exception as exc:
-        return jsonify(ok=False, models=[], msg=str(exc))
+        # Log the detail server-side; return a generic message so internal
+        # details (paths, hostnames, stack info) are not exposed to the client.
+        app.logger.warning("openai-models fetch failed (base_url=%s): %s", base_url, exc)
+        return jsonify(ok=False, models=[], msg="Could not fetch models — check the URL and API key; see the server logs for details.")
 
 
 # ---------------------------------------------------------------------------
