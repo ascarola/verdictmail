@@ -37,7 +37,7 @@
        style="overflow-y:auto; max-height:calc(100vh - 72px)">
 
     <h4 class="mb-1"><i class="bi bi-book me-2"></i>Documentation</h4>
-    <p class="text-muted small mb-4">VerdictMail — AI Email Security &amp; Triage Platform &nbsp;·&nbsp; v0.5.1</p>
+    <p class="text-muted small mb-4">VerdictMail — AI Email Security &amp; Triage Platform &nbsp;·&nbsp; v0.6.0</p>
 
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="overview">Overview</h5>
@@ -405,20 +405,21 @@
     </p>
 
     <!-- ================================================================ -->
-    <h5 class="doc-anchor" id="blacklist">Blacklist (Always Junk)</h5>
+    <h5 class="doc-anchor" id="blacklist">Blacklist (Always Junk / Trash)</h5>
     <hr class="mt-1">
     <p>
       The blacklist is the mirror image of the whitelist: senders matched here are
-      moved straight to the junk folder without enrichment or AI analysis. Use it
+      moved straight out of the inbox without enrichment or AI analysis. Use it
       as an override for senders that ignore unsubscribe/opt-out requests or that
       you simply never want to see in your inbox. Blacklisted messages are logged
-      with <code>action=move_to_junk</code>, <code>confidence=1.0</code>, a
-      <code>model_name</code> of <code>"blacklist"</code>, and a reasoning note of
-      <em>"Blacklisted (always junk): &lt;comment&gt;"</em>.
+      with <code>action=move_to_junk</code> (or <code>move_to_trash</code>),
+      <code>confidence=1.0</code>, a <code>model_name</code> of <code>"blacklist"</code>,
+      and a reasoning note of <em>"Blacklisted (always junk/trash): &lt;comment&gt;"</em>.
     </p>
     <ul class="small mb-3">
       <li>Rule fields and matching logic are identical to the <a href="#whitelist" class="text-info">whitelist</a>: <code>sender</code>, <code>sender_domain</code>, <code>subject_contains</code>, and <code>comment</code>, with AND logic within a rule and first-match-wins across rules.</li>
-      <li><strong>The blacklist takes precedence over the whitelist</strong> — if a sender matches both, the message is junked. The web UI warns when you add a conflicting rule.</li>
+      <li><strong>Destination is configurable</strong> via the <em>Action</em> toggle on the Blacklist page (<code>blacklist.action</code>: <code>junk</code> or <code>trash</code>). <code>junk</code> (default) moves mail to <code>imap.junk_folder</code>; <code>trash</code> moves it to <code>imap.trash_folder</code>. On Gmail, Trash is auto-purged after 30 days, so <code>trash</code> effectively deletes the mail on a delay. Both use a safe copy-then-delete — a bare IMAP delete would <em>not</em> reach Gmail's Trash (the message would linger in All Mail).</li>
+      <li><strong>The blacklist takes precedence over the whitelist</strong> — if a sender matches both, the blacklist action wins. The web UI warns when you add a conflicting rule.</li>
       <li>Add rules from the <a href="{{ url_for('blacklist_view') }}" class="text-info">Blacklist</a> page, or directly from any message's detail view in the Audit Log via the <em>Junk Sender</em> button.</li>
       <li>Blacklist changes take effect after a daemon restart.</li>
     </ul>
@@ -488,7 +489,9 @@
           <tr><td>imap.port</td><td><code>993</code></td><td>IMAP server port (TLS).</td></tr>
           <tr><td>imap.folder</td><td><code>INBOX</code></td><td>Mailbox folder to monitor.</td></tr>
           <tr><td>imap.junk_folder</td><td><code>[Gmail]/Spam</code></td><td>Destination folder for the <code>move_to_junk</code> action (high/critical threat). Use your provider's spam folder name (e.g. <code>Junk</code> for Fastmail/Outlook, <code>Junk Email</code> for iCloud).</td></tr>
+          <tr><td>imap.trash_folder</td><td><code>[Gmail]/Trash</code></td><td>Destination folder for the <code>move_to_trash</code> action (blacklist with <code>action: trash</code>). Other providers vary: <code>Trash</code>, <code>INBOX.Trash</code>, or <code>Deleted Messages</code>.</td></tr>
           <tr><td>imap.suspect_folder</td><td><em>absent</em></td><td>Optional. Destination folder for the <code>flag</code> action (medium threat). Create the folder/label in your mail client first (Gmail: create a label, e.g. <code>Suspect</code>), then enter its exact IMAP name. When absent or empty, flagged messages are starred (<code>\Flagged</code>) in-place instead.</td></tr>
+          <tr><td>blacklist.action</td><td><code>junk</code></td><td>Where blacklisted mail goes: <code>junk</code> (to <code>imap.junk_folder</code>, kept) or <code>trash</code> (to <code>imap.trash_folder</code>; on Gmail, auto-deleted after 30 days).</td></tr>
           <tr><td>worker_threads</td><td><code>4</code></td><td>Number of concurrent message-processing threads.</td></tr>
           <tr><td>startup_scan_limit</td><td><code>20</code></td><td>Max number of unread messages to process when the daemon starts. Set to <code>0</code> to disable the startup scan.</td></tr>
           <tr><td>dnsbl.lists</td><td>3 lists</td><td>DNS blocklists to query for sender IP reputation.</td></tr>

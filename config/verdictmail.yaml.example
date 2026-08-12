@@ -24,6 +24,10 @@ imap:
   # Folder to move messages into when action is MOVE_TO_JUNK (high/critical threat).
   # Gmail default: "[Gmail]/Spam". Other providers vary (e.g. "Junk" on Fastmail/Outlook).
   junk_folder: "[Gmail]/Spam"
+  # Folder to move messages into when the blacklist action is "trash" (see below).
+  # Gmail default: "[Gmail]/Trash". Other providers vary (e.g. "Trash",
+  # "INBOX.Trash", or "Deleted Messages"). On Gmail, Trash auto-purges after 30 days.
+  trash_folder: "[Gmail]/Trash"
   # Optional: move FLAG-level (medium threat) messages here instead of starring them.
   # Create this folder/label in your mail client first (e.g. a Gmail label "Suspect"),
   # then enter its exact IMAP name. Leave unset to use \Flagged (Gmail star) instead.
@@ -72,6 +76,9 @@ whitelist:
 #     comment: Ignores opt-out
 blacklist:
   enabled: true
+  # Where blacklisted mail goes: "junk" (default — your Spam folder, kept) or
+  # "trash" (imap.trash_folder — on Gmail, auto-deleted after 30 days).
+  action: junk
   rules: []
 
 worker_threads: 4

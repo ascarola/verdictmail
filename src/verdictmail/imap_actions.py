@@ -13,12 +13,19 @@ from .decision_engine import FinalAction
 logger = logging.getLogger(__name__)
 
 _DEFAULT_JUNK_FOLDER = "[Gmail]/Spam"
+_DEFAULT_TRASH_FOLDER = "[Gmail]/Trash"
 
 
 class ImapActionWriter:
-    def __init__(self, junk_folder: str = _DEFAULT_JUNK_FOLDER, suspect_folder: str = ""):
+    def __init__(
+        self,
+        junk_folder: str = _DEFAULT_JUNK_FOLDER,
+        suspect_folder: str = "",
+        trash_folder: str = _DEFAULT_TRASH_FOLDER,
+    ):
         self._junk_folder = junk_folder
         self._suspect_folder = suspect_folder
+        self._trash_folder = trash_folder
 
     def apply(self, uid: int, action: FinalAction, client: IMAPClient) -> None:
         """Apply the resolved action to the given message UID."""
@@ -30,7 +37,10 @@ class ImapActionWriter:
             self._flag_message(uid, client)
 
         elif action == FinalAction.MOVE_TO_JUNK:
-            self._move_to_junk(uid, client)
+            self._move_to_folder(uid, self._junk_folder, client)
+
+        elif action == FinalAction.MOVE_TO_TRASH:
+            self._move_to_folder(uid, self._trash_folder, client)
 
     # ------------------------------------------------------------------
     # FLAG — move to suspect folder, or star with \Flagged
@@ -59,17 +69,22 @@ class ImapActionWriter:
                 raise
 
     # ------------------------------------------------------------------
-    # MOVE TO JUNK — copy then delete
+    # MOVE — copy to a destination folder, then delete the original
     # ------------------------------------------------------------------
+    # Used for both Junk/Spam and Trash. On Gmail, copying into [Gmail]/Spam
+    # or [Gmail]/Trash strips the INBOX label automatically, so the follow-up
+    # delete/expunge on INBOX is a harmless no-op guarded by try/except.
+    # (A bare \Deleted+expunge on INBOX would NOT move mail to Trash — it only
+    # removes the INBOX label and the message survives in All Mail forever.)
 
-    def _move_to_junk(self, uid: int, client: IMAPClient) -> None:
-        # 1. Copy to junk folder
+    def _move_to_folder(self, uid: int, folder: str, client: IMAPClient) -> None:
+        # 1. Copy to the destination folder
         try:
-            copy_result = client.copy([uid], self._junk_folder)
+            copy_result = client.copy([uid], folder)
             logger.debug("UID %d: copy result: %s", uid, copy_result)
         except Exception as exc:
             logger.error(
-                "UID %d: COPY to %s failed — aborting move: %s", uid, self._junk_folder, exc
+                "UID %d: COPY to %s failed — aborting move: %s", uid, folder, exc
             )
             raise
 
@@ -77,7 +92,7 @@ class ImapActionWriter:
         try:
             client.delete_messages([uid])
             client.expunge()
-            logger.info("UID %d: moved to %s", uid, self._junk_folder)
+            logger.info("UID %d: moved to %s", uid, folder)
         except Exception as exc:
             logger.error(
                 "UID %d: delete/expunge failed after copy (message may be duplicated): %s",

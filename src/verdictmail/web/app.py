@@ -691,6 +691,7 @@ def config_ai():
 def config_imap():
     junk_folder = request.form.get("junk_folder", "").strip()
     suspect_folder = request.form.get("suspect_folder", "").strip()
+    trash_folder = request.form.get("trash_folder", "").strip()
 
     if suspect_folder:
         try:
@@ -719,6 +720,8 @@ def config_imap():
         imap_section = cfg.setdefault("imap", {})
         if junk_folder:
             imap_section["junk_folder"] = junk_folder
+        if trash_folder:
+            imap_section["trash_folder"] = trash_folder
         if suspect_folder:
             imap_section["suspect_folder"] = suspect_folder
         else:
@@ -878,7 +881,18 @@ def blacklist_view():
     bl = cfg.get("blacklist", {})
     rules = bl.get("rules", [])
     enabled = bl.get("enabled", True)
-    return render_template("blacklist.html", rules=rules, enabled=enabled)
+    action = "trash" if str(bl.get("action", "junk")).lower() == "trash" else "junk"
+    imap_cfg = cfg.get("imap", {})
+    junk_folder = imap_cfg.get("junk_folder", "[Gmail]/Spam")
+    trash_folder = imap_cfg.get("trash_folder", "[Gmail]/Trash")
+    return render_template(
+        "blacklist.html",
+        rules=rules,
+        enabled=enabled,
+        action=action,
+        junk_folder=junk_folder,
+        trash_folder=trash_folder,
+    )
 
 
 @app.route("/blacklist/toggle", methods=["POST"])
@@ -890,6 +904,22 @@ def blacklist_toggle():
     _save_config(cfg)
     state = "enabled" if bl["enabled"] else "disabled"
     flash(f"Blacklist {state}. Restart the daemon to apply.", "success")
+    return redirect(url_for("blacklist_view"))
+
+
+@app.route("/blacklist/action", methods=["POST"])
+@require_auth
+def blacklist_action():
+    """Set where blacklisted mail goes: 'junk' (Spam) or 'trash'."""
+    choice = request.form.get("action", "junk").strip().lower()
+    if choice not in ("junk", "trash"):
+        choice = "junk"
+    cfg = _load_config()
+    bl = cfg.setdefault("blacklist", {"enabled": True, "rules": []})
+    bl["action"] = choice
+    _save_config(cfg)
+    dest = "Trash" if choice == "trash" else "Junk/Spam"
+    flash(f"Blacklisted mail will be moved to {dest}. Restart the daemon to apply.", "success")
     return redirect(url_for("blacklist_view"))
 
 
@@ -910,10 +940,11 @@ def blacklist_add():
 
     conflict = _whitelist_conflict(cfg, rule)
     if conflict:
+        _dest = "moved to Trash" if str(bl.get("action", "junk")).lower() == "trash" else "junked"
         flash(
             "Warning: this sender also matches a whitelist rule "
             f"({conflict.get('comment') or conflict.get('sender') or conflict.get('sender_domain')!r}). "
-            "The blacklist takes precedence — matching mail will be junked.",
+            f"The blacklist takes precedence — matching mail will be {_dest}.",
             "warning",
         )
     return redirect(_safe_next_url(next_url, url_for("blacklist_view")))

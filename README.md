@@ -4,7 +4,7 @@
 
 # VerdictMail
 
-![Version](https://img.shields.io/badge/version-0.5.1-blue)
+![Version](https://img.shields.io/badge/version-0.6.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 ![Python](https://img.shields.io/badge/python-3.11%2B-blue)
 
@@ -60,7 +60,7 @@ IMAP IDLE (main thread)
     └─▶ ThreadPoolExecutor (worker threads)
             │
             ├── message_parser   — RFC 822 parsing, URL extraction
-            ├── blacklist        — user-marked "always junk" senders → straight to junk
+            ├── blacklist        — user-marked "always junk/trash" senders → straight to junk or trash
             ├── whitelist        — bypass enrichment/AI for trusted senders
             ├── enrichment       — SPF/DMARC/DKIM/DKIM alignment/DNSBL/WHOIS/URL expansion/URLhaus/VirusTotal
             ├── ai_analyzer      — OpenAI / Anthropic / Ollama via httpx
@@ -213,13 +213,15 @@ Changes require a daemon restart: `systemctl restart verdictmail`.
 | `imap.port` | `993` | IMAP SSL port |
 | `imap.folder` | `INBOX` | Folder to monitor |
 | `imap.junk_folder` | `[Gmail]/Spam` | Destination folder for MOVE_TO_JUNK actions (high/critical threat) (e.g. `Junk` on Fastmail/Outlook) |
+| `imap.trash_folder` | `[Gmail]/Trash` | Destination folder for the `move_to_trash` action (blacklist with `action: trash`). Other providers: `Trash`, `INBOX.Trash`, `Deleted Messages` |
 | `imap.suspect_folder` | *(absent)* | Optional. Destination folder for FLAG actions (medium threat). Create the folder/label first, then enter its exact IMAP name. When absent, flagged messages are starred (`\Flagged`) in-place. |
 | `worker_threads` | `4` | Concurrent message processors |
 | `startup_scan_limit` | `20` | Max unread messages to process on startup |
 | `whitelist.enabled` | `true` | Master on/off for whitelist |
 | `whitelist.rules` | `[]` | List of whitelist rule objects |
-| `blacklist.enabled` | `true` | Master on/off for blacklist (always junk) |
-| `blacklist.rules` | `[]` | List of always-junk rule objects (same schema as whitelist) |
+| `blacklist.enabled` | `true` | Master on/off for blacklist |
+| `blacklist.action` | `junk` | Where blacklisted mail goes: `junk` (to `imap.junk_folder`, kept) or `trash` (to `imap.trash_folder`; on Gmail auto-deleted after 30 days) |
+| `blacklist.rules` | `[]` | List of blacklist rule objects (same schema as whitelist) |
 | `graymail.enabled` | `false` | Master on/off for the graymail filter (unsolicited bulk/commercial mail). Off by default |
 | `graymail.flag_threshold` | `0.6` | Minimum graymail confidence to send detected graymail to the Suspect folder (must be ≤ `graymail.junk_threshold`) |
 | `graymail.junk_threshold` | `0.85` | Minimum graymail confidence to move detected graymail to Junk |
@@ -282,7 +284,8 @@ Set `IMAP_USERNAME` and `IMAP_PASSWORD` in `.env` to your account credentials, t
 |--------|------|--------|
 | `pass` | Clean mail, low threat, or whitelisted | No IMAP changes |
 | `flag` | Medium/high threat at sufficient confidence | If `imap.suspect_folder` is configured: moves message there. Otherwise: stars the message (`\Flagged`) in-place. |
-| `move_to_junk` | High/critical threat at high confidence, or blacklisted sender | Copies to the configured junk folder (`imap.junk_folder`, default `[Gmail]/Spam`), deletes original |
+| `move_to_junk` | High/critical threat at high confidence, or blacklisted sender (when `blacklist.action: junk`) | Copies to the configured junk folder (`imap.junk_folder`, default `[Gmail]/Spam`), deletes original |
+| `move_to_trash` | Blacklisted sender when `blacklist.action: trash` | Copies to the configured trash folder (`imap.trash_folder`, default `[Gmail]/Trash`), deletes original. On Gmail, Trash is auto-purged after 30 days |
 
 ---
 
@@ -299,14 +302,15 @@ Multiple fields in one rule require **all** to match (AND logic). Manage rules v
 
 ---
 
-## Blacklist (always junk)
+## Blacklist (always junk / trash)
 
-The blacklist is the mirror image of the whitelist: matching messages skip enrichment and AI analysis and move straight to the junk folder. Use it as an override for senders that ignore unsubscribe/opt-out requests.
+The blacklist is the mirror image of the whitelist: matching messages skip enrichment and AI analysis and move straight out of the inbox. Use it as an override for senders that ignore unsubscribe/opt-out requests.
 
 - Same rule schema and matching logic as the whitelist (`sender`, `sender_domain`, `subject_contains`, `comment`)
-- **Takes precedence over the whitelist** — if a sender matches both, the message is junked (the web UI warns about conflicting rules)
+- **Destination is configurable** via the **Action** toggle on the Blacklist page (`blacklist.action`): `junk` (default — moves to `imap.junk_folder`, kept) or `trash` (moves to `imap.trash_folder`; on Gmail, Trash is auto-purged after 30 days, so matched senders effectively delete on a delay). Both use a safe copy-then-delete — a bare IMAP delete would *not* reach Gmail's Trash.
+- **Takes precedence over the whitelist** — if a sender matches both, the blacklist action wins (the web UI warns about conflicting rules)
 - Add rules from the Blacklist page, or from any message's detail view in the Audit Log via the **Junk Sender** button
-- Logged with `action=move_to_junk` and `model_name="blacklist"` so user-mandated junk is distinguishable from AI verdicts
+- Logged with `action=move_to_junk` (or `move_to_trash`) and `model_name="blacklist"` so user-mandated actions are distinguishable from AI verdicts
 
 ---
 
@@ -426,6 +430,26 @@ sqlite3 /var/log/verdictmail/verdictmail.db \
 ---
 
 ## Upgrading
+
+### v0.6.0 — Blacklist: move to Trash instead of Junk
+
+A backward-compatible feature release with **no breaking changes** — pull and restart:
+
+```bash
+git -C /opt/verdictmail pull
+systemctl restart verdictmail verdictmail-web
+```
+
+The Blacklist page gains a **Junk ⇄ Trash** action toggle (`blacklist.action`). Set it to
+**Move to Trash** to route blacklisted mail straight to the Trash folder instead of Spam — on
+Gmail, Trash is auto-purged after 30 days, so matched senders effectively delete on a delay.
+A new configurable **Trash folder** (`imap.trash_folder`, default `[Gmail]/Trash`) on the
+Configuration page supports non-Gmail servers (`Trash`, `INBOX.Trash`, `Deleted Messages`).
+
+Both moves use the same safe copy-then-delete as the Junk action — a bare IMAP delete would
+*not* reach Gmail's Trash (the message would linger in All Mail). **No breaking changes:**
+`blacklist.action` defaults to `junk`, so existing setups behave exactly as before until you
+opt in.
 
 ### v0.5.1 — Fetch models for the OpenAI provider
 

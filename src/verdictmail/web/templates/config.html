@@ -97,6 +97,13 @@
             placeholder="e.g. Suspect">
           <div class="form-text">Leave blank to star flagged messages (⭐) in-place instead of moving them.</div>
         </div>
+        <div class="col-sm-6">
+          <label class="form-label small">Trash folder <span class="text-muted">(blacklist "move to Trash")</span></label>
+          <input type="text" name="trash_folder" class="form-control form-control-sm"
+            value="{{ imap_cfg.get('trash_folder', '[Gmail]/Trash') }}"
+            placeholder="[Gmail]/Trash">
+          <div class="form-text">Used only when the blacklist action is set to "Move to Trash". Other servers: <code>Trash</code>, <code>INBOX.Trash</code>, <code>Deleted Messages</code>.</div>
+        </div>
       </div>
       <div class="mt-3">
         <button type="submit" class="btn btn-sm btn-primary">

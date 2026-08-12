@@ -117,8 +117,13 @@ def _process_message(
     done_uids: set,
     whitelist_rules: list,
     blacklist_rules: list,
+    blacklist_action=None,
 ) -> None:
     from .audit_logger import log_decision
+    from .decision_engine import FinalAction as _FinalAction
+
+    if blacklist_action is None:
+        blacklist_action = _FinalAction.MOVE_TO_JUNK
     from imapclient import IMAPClient
 
     start_ms = time.monotonic()
@@ -161,23 +166,23 @@ def _process_message(
                 or blacklist_match.get("sender_domain")
                 or "rule match"
             )
-            log.info("UID %d: blacklisted (%s) — moving to junk, skipping analysis", uid, comment)
+            dest = "trash" if blacklist_action == _FinalAction.MOVE_TO_TRASH else "junk"
+            log.info("UID %d: blacklisted (%s) — moving to %s, skipping analysis", uid, comment, dest)
             ai_result = types.SimpleNamespace(
                 threat_level="none",
                 threat_types=[],
                 confidence=1.0,
                 signals={},
-                reasoning=f"Blacklisted (always junk): {comment}",
+                reasoning=f"Blacklisted (always {dest}): {comment}",
                 raw_response="",
             )
             model_name = "blacklist"
-            from .decision_engine import FinalAction
-            action_taken = FinalAction.MOVE_TO_JUNK.value
+            action_taken = blacklist_action.value
             try:
-                action_writer.apply(uid, FinalAction.MOVE_TO_JUNK, worker_client)
+                action_writer.apply(uid, blacklist_action, worker_client)
             except Exception as exc:
-                log.error("UID %d: IMAP action move_to_junk failed: %s", uid, exc)
-                action_taken = f"error:{FinalAction.MOVE_TO_JUNK.value}"
+                log.error("UID %d: IMAP action %s failed: %s", uid, blacklist_action.value, exc)
+                action_taken = f"error:{blacklist_action.value}"
         # 3b. Whitelist check — bypass enrichment/AI for trusted senders
         elif (whitelist_match := _match_rules(whitelist_rules, parsed) if whitelist_rules else None):
             comment = (
@@ -426,9 +431,13 @@ def main() -> None:
 
     junk_folder = imap_cfg.get("junk_folder", "[Gmail]/Spam")
     suspect_folder = imap_cfg.get("suspect_folder", "")
-    action_writer = ImapActionWriter(junk_folder=junk_folder, suspect_folder=suspect_folder)
+    trash_folder = imap_cfg.get("trash_folder", "[Gmail]/Trash")
+    action_writer = ImapActionWriter(
+        junk_folder=junk_folder, suspect_folder=suspect_folder, trash_folder=trash_folder
+    )
     logger.info("Junk folder: %s", junk_folder)
     logger.info("Suspect folder: %s", suspect_folder or "(none — starring)")
+    logger.info("Trash folder: %s", trash_folder)
     model_name = ai_model
 
     whitelist_cfg = cfg.get("whitelist", {})
@@ -442,8 +451,17 @@ def main() -> None:
     blacklist_cfg = cfg.get("blacklist", {})
     blacklist_enabled = blacklist_cfg.get("enabled", True)
     blacklist_rules: list[dict] = blacklist_cfg.get("rules", []) if blacklist_enabled else []
+    # Where blacklisted mail goes: "junk" (default, back-compat) or "trash".
+    from .decision_engine import FinalAction as _FinalAction
+    blacklist_action = (
+        _FinalAction.MOVE_TO_TRASH
+        if str(blacklist_cfg.get("action", "junk")).lower() == "trash"
+        else _FinalAction.MOVE_TO_JUNK
+    )
     if blacklist_rules:
-        logger.info("Blacklist active: %d rule(s)", len(blacklist_rules))
+        dest = trash_folder if blacklist_action == _FinalAction.MOVE_TO_TRASH else junk_folder
+        logger.info("Blacklist active: %d rule(s) → %s (%s)",
+                    len(blacklist_rules), blacklist_action.value, dest)
     else:
         logger.info("Blacklist disabled or empty")
 
@@ -479,6 +497,7 @@ def main() -> None:
             done_uids,
             whitelist_rules,
             blacklist_rules,
+            blacklist_action,
         )
 
     def _handle_signal(signum, frame):

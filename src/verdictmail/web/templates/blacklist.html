@@ -3,7 +3,7 @@
 
 {% block content %}
 <div class="d-flex align-items-center justify-content-between mb-3">
-  <h4 class="mb-0"><i class="bi bi-shield-x me-2"></i>Blacklist <span class="text-muted fs-6">(always junk)</span></h4>
+  <h4 class="mb-0"><i class="bi bi-shield-x me-2"></i>Blacklist <span class="text-muted fs-6">(always {% if action == 'trash' %}trash{% else %}junk{% endif %})</span></h4>
   <div class="d-flex gap-2">
     <form method="post" action="{{ url_for('service_restart') }}">
       <input type="hidden" name="next" value="{{ url_for('blacklist_view') }}">
@@ -24,13 +24,43 @@
 </div>
 
 <p class="text-muted small mb-3">
-  Blacklisted messages skip enrichment and AI analysis and are moved straight to the junk folder.
+  Blacklisted messages skip enrichment and AI analysis and are moved straight to
+  {% if action == 'trash' %}the <strong>Trash</strong> folder (<code>{{ trash_folder }}</code>){% else %}the <strong>Junk</strong> folder (<code>{{ junk_folder }}</code>){% endif %}.
   Use this for senders that ignore unsubscribe/opt-out requests.
   Rules are matched in order; the first match wins.
   All specified fields in a rule must match (AND logic).
   The blacklist takes precedence over the whitelist.
   Restart the daemon after making changes.
 </p>
+
+<!-- Destination action -->
+<div class="card mb-4">
+  <div class="card-body py-3">
+    <div class="d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <div>
+        <strong class="small">Action for blacklisted mail</strong>
+        <div class="form-text mb-0">
+          {% if action == 'trash' %}
+            Moved to Trash. On Gmail, Trash is auto-purged after 30 days.
+          {% else %}
+            Moved to your Junk/Spam folder (kept, not deleted).
+          {% endif %}
+          Set the folder names on the <a href="{{ url_for('config_editor') }}">Configuration</a> page.
+        </div>
+      </div>
+      <form method="post" action="{{ url_for('blacklist_action') }}" class="btn-group btn-group-sm" role="group">
+        <button type="submit" name="action" value="junk"
+          class="btn {% if action != 'trash' %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+          <i class="bi bi-slash-circle me-1"></i> Move to Junk
+        </button>
+        <button type="submit" name="action" value="trash"
+          class="btn {% if action == 'trash' %}btn-danger{% else %}btn-outline-secondary{% endif %}">
+          <i class="bi bi-trash me-1"></i> Move to Trash
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
 
 <!-- Current rules -->
 <div class="card mb-4">

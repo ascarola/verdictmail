@@ -14,6 +14,9 @@ class FinalAction(str, Enum):
     PASS = "pass"
     FLAG = "flag"
     MOVE_TO_JUNK = "move_to_junk"
+    # Only produced by the blacklist path (never by threshold logic below).
+    # Moves the message to the Trash folder instead of Junk/Spam.
+    MOVE_TO_TRASH = "move_to_trash"
 
 
 class DecisionEngine:
