@@ -156,6 +156,7 @@
             <li>The <a href="{{ url_for('blacklist_view') }}">Blacklist</a> page now has a <strong>Junk ⇄ Trash</strong> action toggle (<code>blacklist.action</code>). Choose <strong>Move to Trash</strong> to send blacklisted mail straight to the Trash folder instead of Spam — on Gmail, Trash is auto-purged after 30 days, so matched senders effectively delete on a delay.</li>
             <li>New configurable <strong>Trash folder</strong> on the Configuration page (<code>imap.trash_folder</code>, default <code>[Gmail]/Trash</code>) for non-Gmail servers (<code>Trash</code>, <code>INBOX.Trash</code>, <code>Deleted Messages</code>).</li>
             <li>Uses the same safe copy-then-delete as the Junk move — a plain IMAP delete would <em>not</em> reach Gmail's Trash. <strong>No breaking changes:</strong> the action defaults to <code>junk</code>, so existing setups are unchanged.</li>
+            <li>Audit Log and Dashboard show a distinct <span class="badge badge-trash">trash</span> badge for the action, and failed actions now collapse to a single <span class="badge badge-error">error</span> badge (full detail on hover) instead of strings like <code>error:move_to_junk</code>.</li>
           </ul>
         </div>
 

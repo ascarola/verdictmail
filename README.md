@@ -451,6 +451,10 @@ Both moves use the same safe copy-then-delete as the Junk action — a bare IMAP
 `blacklist.action` defaults to `junk`, so existing setups behave exactly as before until you
 opt in.
 
+The Audit Log and Dashboard render a distinct **`trash`** badge for the `move_to_trash` action,
+and failed actions now collapse to a single **`error`** badge (with the full `error:<action>`
+detail on hover) instead of showing the raw string.
+
 ### v0.5.1 — Fetch models for the OpenAI provider
 
 A small UI addition to v0.5.0 — pull and restart:

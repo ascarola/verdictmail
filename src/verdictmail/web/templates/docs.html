@@ -198,7 +198,8 @@
     <!-- ================================================================ -->
     <h5 class="doc-anchor" id="actions">Actions</h5>
     <hr class="mt-1">
-    <p>VerdictMail takes exactly one of three actions on each message:</p>
+    <p>VerdictMail takes one of the following actions on each message
+       (<span class="badge badge-trash">move_to_trash</span> is reachable only via the blacklist):</p>
 
     <div class="row g-3 mb-3">
       <div class="col-md-4">
@@ -239,6 +240,22 @@
             the original from INBOX. The copy step is confirmed before
             deletion to prevent message loss on error. The destination is
             set via <code>imap.junk_folder</code> in the config.
+          </div>
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="card h-100" style="border-color:#842029">
+          <div class="card-header small fw-bold" style="color:#e07a84">
+            <span class="badge badge-trash me-2">MOVE_TO_TRASH</span>
+          </div>
+          <div class="card-body small">
+            Blacklist-only. When <code>blacklist.action</code> is set to
+            <code>trash</code>, blacklisted senders are copied to
+            <code>imap.trash_folder</code> (default <code>[Gmail]/Trash</code>)
+            and expunged from INBOX — same safe copy-then-delete as junk. On
+            Gmail, Trash is auto-purged after 30 days. Shown as a
+            <span class="badge badge-trash">trash</span> badge in the Audit Log
+            and Dashboard.
           </div>
         </div>
       </div>
