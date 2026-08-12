@@ -189,7 +189,7 @@
             <td><span class="threat-critical fw-bold">critical</span></td>
             <td>Near-certain threat. Model has very high confidence this is a
                 malicious message.</td>
-            <td><span class="badge badge-junk">move_to_junk</span> always</td>
+            <td><span class="badge badge-junk">junk</span> always</td>
           </tr>
         </tbody>
       </table>
@@ -199,7 +199,7 @@
     <h5 class="doc-anchor" id="actions">Actions</h5>
     <hr class="mt-1">
     <p>VerdictMail takes one of the following actions on each message
-       (<span class="badge badge-trash">move_to_trash</span> is reachable only via the blacklist):</p>
+       (the <span class="badge badge-trash">trash</span> action is reachable only via the blacklist):</p>
 
     <div class="row g-3 mb-3">
       <div class="col-md-4">
@@ -232,7 +232,7 @@
       <div class="col-md-4">
         <div class="card h-100 border-danger">
           <div class="card-header text-danger small fw-bold">
-            <span class="badge badge-junk me-2">MOVE_TO_JUNK</span>
+            <span class="badge badge-junk me-2">JUNK</span>
           </div>
           <div class="card-body small">
             Copies the message to the configured junk folder
@@ -240,13 +240,14 @@
             the original from INBOX. The copy step is confirmed before
             deletion to prevent message loss on error. The destination is
             set via <code>imap.junk_folder</code> in the config.
+            Logged as <code>action_taken = move_to_junk</code>.
           </div>
         </div>
       </div>
       <div class="col-md-4">
         <div class="card h-100" style="border-color:#842029">
           <div class="card-header small fw-bold" style="color:#e07a84">
-            <span class="badge badge-trash me-2">MOVE_TO_TRASH</span>
+            <span class="badge badge-trash me-2">TRASH</span>
           </div>
           <div class="card-body small">
             Blacklist-only. When <code>blacklist.action</code> is set to
@@ -255,7 +256,7 @@
             and expunged from INBOX — same safe copy-then-delete as junk. On
             Gmail, Trash is auto-purged after 30 days. Shown as a
             <span class="badge badge-trash">trash</span> badge in the Audit Log
-            and Dashboard.
+            and Dashboard; logged as <code>action_taken = move_to_trash</code>.
           </div>
         </div>
       </div>
@@ -293,17 +294,17 @@
           <tr>
             <td>3</td>
             <td><code>threat_level == "critical"</code></td>
-            <td><span class="badge badge-junk">move_to_junk</span></td>
+            <td><span class="badge badge-junk">junk</span></td>
           </tr>
           <tr>
             <td>4</td>
             <td><code>threat_level == "high"</code> and <code>confidence ≥ junk_threshold</code></td>
-            <td><span class="badge badge-junk">move_to_junk</span></td>
+            <td><span class="badge badge-junk">junk</span></td>
           </tr>
           <tr>
             <td>5</td>
             <td><code>threat_level == "high"</code> and <code>confidence ≥ flag_threshold</code> and AI recommends quarantine / junk / block</td>
-            <td><span class="badge badge-junk">move_to_junk</span></td>
+            <td><span class="badge badge-junk">junk</span></td>
           </tr>
           <tr>
             <td>6</td>
@@ -463,7 +464,7 @@
           <tr><th>Condition</th><th>Action</th></tr>
         </thead>
         <tbody>
-          <tr><td><code>graymail_category != "none"</code> and <code>graymail_confidence ≥ graymail.junk_threshold</code></td><td><span class="badge badge-junk">move_to_junk</span></td></tr>
+          <tr><td><code>graymail_category != "none"</code> and <code>graymail_confidence ≥ graymail.junk_threshold</code></td><td><span class="badge badge-junk">junk</span></td></tr>
           <tr><td><code>graymail_category != "none"</code> and <code>graymail_confidence ≥ graymail.flag_threshold</code></td><td><span class="badge badge-flag">flag</span> (Suspect folder, or ⭐ in place)</td></tr>
           <tr><td><em>otherwise</em></td><td><span class="badge badge-pass">pass</span></td></tr>
         </tbody>
