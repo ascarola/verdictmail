@@ -23,8 +23,8 @@
   <div class="col-md-2">
     <select name="action" class="form-select form-select-sm">
       <option value="">All actions</option>
-      {% for act in ['pass','flag','move_to_junk'] %}
-        <option value="{{ act }}" {% if action_filter == act %}selected{% endif %}>{{ act }}</option>
+      {% for val, lbl in [('pass','pass'),('flag','flag'),('move_to_junk','junk'),('move_to_trash','trash')] %}
+        <option value="{{ val }}" {% if action_filter == val %}selected{% endif %}>{{ lbl }}</option>
       {% endfor %}
     </select>
   </div>
@@ -66,7 +66,9 @@
               {% if suspect_folder %}<span class="badge badge-flag" title="Moved to {{ suspect_folder }}">→ {{ suspect_folder }}</span>
               {% else %}<span class="badge badge-flag">Starred</span>{% endif %}
             {% elif act == 'move_to_junk' %}<span class="badge badge-junk">junk</span>
-            {% else %}<span class="badge badge-error">{{ act[:12] }}</span>{% endif %}
+            {% elif act == 'move_to_trash' %}<span class="badge badge-trash">trash</span>
+            {% elif act.startswith('error') %}<span class="badge badge-error" title="{{ act }}">error</span>
+            {% else %}<span class="badge badge-error" title="{{ act }}">{{ act[:12] }}</span>{% endif %}
           </td>
           <td class="small text-muted">{{ r['processing_ms'] or '—' }}</td>
           <td>

@@ -176,7 +176,9 @@
             {% if act == 'pass' %}<span class="badge badge-pass">pass</span>
             {% elif act == 'flag' %}<span class="badge badge-flag">flag</span>
             {% elif act == 'move_to_junk' %}<span class="badge badge-junk">junk</span>
-            {% else %}<span class="badge badge-error">{{ act }}</span>{% endif %}
+            {% elif act == 'move_to_trash' %}<span class="badge badge-trash">trash</span>
+            {% elif act.startswith('error') %}<span class="badge badge-error" title="{{ act }}">error</span>
+            {% else %}<span class="badge badge-error" title="{{ act }}">{{ act }}</span>{% endif %}
           </td>
         </tr>
         {% else %}
@@ -340,11 +342,16 @@ function refreshStatus() {
       const lastEl = document.getElementById('status-last');
       if (data.last_email) {
         const e = data.last_email;
-        const actClass = e.action_taken === 'pass' ? 'text-success'
-                       : e.action_taken === 'flag' ? 'text-warning'
-                       : e.action_taken === 'move_to_junk' ? 'text-danger'
+        const act = e.action_taken || '';
+        const actLabels = {pass:'pass', flag:'flag', move_to_junk:'junk', move_to_trash:'trash'};
+        const actLabel = act.startsWith('error') ? 'error' : (actLabels[act] || act || '—');
+        const actClass = act === 'pass' ? 'text-success'
+                       : act === 'flag' ? 'text-warning'
+                       : act === 'move_to_junk' ? 'text-danger'
+                       : act === 'move_to_trash' ? 'text-danger'
+                       : act.startsWith('error') ? 'text-danger'
                        : 'text-muted';
-        lastEl.innerHTML = `<span class="${actClass}">${e.action_taken || '—'}</span>`
+        lastEl.innerHTML = `<span class="${actClass}" title="${act || ''}">${actLabel}</span>`
           + ` &mdash; <span class="text-muted">${e.timestamp_local || ''}</span>`
           + `<br><span class="text-truncate d-block" style="max-width:220px" title="${e.subject || ''}">`
           + `${(e.subject || '—').substring(0, 50)}</span>`;
