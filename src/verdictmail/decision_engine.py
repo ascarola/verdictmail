@@ -37,9 +37,13 @@ class DecisionEngine:
         self.graymail_flag_threshold = graymail_flag_threshold
         self.graymail_junk_threshold = graymail_junk_threshold
 
-    def decide(self, ai_result) -> FinalAction:
+    def decide(self, ai_result, enrichment=None) -> FinalAction:
         """
         Determine the final action based on AI threat level, confidence, and recommendation.
+
+        `enrichment` is optional and backward-compatible: when omitted, behavior is
+        identical to before. When provided, it is used only to apply a non-destructive
+        "evidence floor" (see below) — it can never downgrade or soften the model's verdict.
 
         threat_level is the primary gate — confidence fine-tunes within that level.
         This keeps low-threat commercial/marketing mail from being aggressively actioned
@@ -119,6 +123,26 @@ class DecisionEngine:
                     graymail_category,
                     graymail_confidence,
                     action.value,
+                )
+
+        # Evidence floor (prompt-injection / evasion defense).
+        # URLhaus (known-malware URLs) and VirusTotal (multi-vendor detections) are
+        # curated threat-intel feeds, computed in code from the message itself — they
+        # cannot be talked down by text in the email body. If such a hit is present, the
+        # message must not silently PASS into the inbox, so we floor it at FLAG (human
+        # review). This ONLY ever raises a PASS to FLAG; it never junks, deletes, or
+        # downgrades a stronger verdict. These signals exist only when the operator has
+        # configured URLhaus/VirusTotal API keys, so deployments without those
+        # integrations are entirely unaffected.
+        if enrichment is not None and action == FinalAction.PASS:
+            urlhaus = bool(getattr(enrichment, "urlhaus_hits", None))
+            virustotal = bool(getattr(enrichment, "virustotal_hits", None))
+            if urlhaus or virustotal:
+                action = FinalAction.FLAG
+                logger.warning(
+                    "Evidence floor: threat-intel hit (urlhaus=%s virustotal=%s) overrides "
+                    "model PASS → FLAG (model verdict=%s/%.2f)",
+                    urlhaus, virustotal, threat_level, confidence,
                 )
 
         logger.info(

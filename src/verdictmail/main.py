@@ -210,7 +210,7 @@ def _process_message(
             ai_result = ai_analyzer.analyze(parsed, enrichment)
 
             # 6. Decide
-            final_action = decision_engine.decide(ai_result)
+            final_action = decision_engine.decide(ai_result, enrichment)
             action_taken = final_action.value
 
             # 7. Apply IMAP action using this worker's own connection

@@ -1165,7 +1165,7 @@ def test():
                 graymail_enabled=bool(graymail_cfg.get("enabled", False)),
                 graymail_flag_threshold=float(graymail_cfg.get("flag_threshold", 0.60)),
                 graymail_junk_threshold=float(graymail_cfg.get("junk_threshold", 0.85)),
-            ).decide(ai)
+            ).decide(ai, enriched)
             results["decision"] = decision
 
     except Exception as exc:
